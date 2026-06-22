@@ -569,7 +569,7 @@ function nav(p){
   window.scrollTo(0,0); if(p==="charts")renderCharts();
 }
 function accBRL(a){return a.moeda==="USD"?Math.round((+a.value||0)*D.usd*100)/100:(+a.value||0)}
-function totalAccounts(){return D.accounts.reduce((s,a)=>s+accBRL(a),0)}
+function totalAccounts(){return D.accounts.filter(a=>!a.isInvest).reduce((s,a)=>s+accBRL(a),0)}
 function monthTx(m){return D.bills.filter(b=>b.month===m).sort((a,b)=>(a.due||"").localeCompare(b.due||""))}
 function sumExp(m){return D.bills.filter(b=>b.month===m&&b.type!=="income").reduce((s,b)=>s+ +b.value,0)}
 function sumInc(m){return D.bills.filter(b=>b.month===m&&b.type==="income").reduce((s,b)=>s+ +b.value,0)}
@@ -633,16 +633,27 @@ function renderBills(){
 }
 
 function renderAccounts(){
-  const tot=totalAccounts();
+  const correntes=D.accounts.filter(a=>!a.isInvest);
+  const investCtas=D.accounts.filter(a=>a.isInvest);
+  const tot=correntes.reduce((s,a)=>s+accBRL(a),0);
+  const totInv=investCtas.reduce((s,a)=>s+accBRL(a),0);
   const carteiraNote='<small style="color:var(--amber);font-size:11px">⚡ debitada ao pagar contas</small>';
-  document.getElementById("a-list").innerHTML=(D.accounts.map(a=>{
+  function accRow(a,pctBase){
     const brl=accBRL(a);
-    const pct=tot?Math.round(brl/tot*100):0;
+    const pct=pctBase?Math.round(brl/pctBase*100):0;
     const sub=a.name==="Carteira"?carteiraNote:
       a.moeda==="USD"?`<small style="color:var(--muted);font-size:11px">US$ ${(+a.value||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} · ${pct}% do total</small>`:
       `<small>${pct}% do total</small>`;
     return `<div class="row"><div class="name" onclick="openAcc(${a.id})"><b>${a.name}</b>${sub}</div><div class="amt" onclick="openAcc(${a.id})">${fmt(brl)}</div></div>`;
-  }).join("")||'<div class="empty">Nenhuma conta.</div>')+`<div class="row"><div class="name"><b>TOTAL</b></div><div class="amt pos">${fmt(tot)}</div></div>`;
+  }
+  let html=correntes.map(a=>accRow(a,tot)).join("")||'<div class="empty">Nenhuma conta.</div>';
+  html+=`<div class="row"><div class="name"><b>Disponível</b></div><div class="amt pos">${fmt(tot)}</div></div>`;
+  if(investCtas.length){
+    html+=`<div style="margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase">Investimentos</div>`;
+    html+=investCtas.map(a=>accRow(a,totInv)).join("");
+    html+=`<div class="row"><div class="name"><b>Total investido</b></div><div class="amt pos">${fmt(totInv)}</div></div>`;
+  }
+  document.getElementById("a-list").innerHTML=html;
 }
 
 function invRow(it){const b=brlOf(it);const r=b.at-b.ap;const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
@@ -758,14 +769,19 @@ function delTx(id){D.bills=D.bills.filter(x=>x.id!==id);closeModal();save()}
 function delGroup(g){if(confirm("Excluir todas as parcelas dessa compra?")){D.bills=D.bills.filter(x=>x.group!==g);closeModal();save()}}
 
 function openAcc(id){
-  const a=id?D.accounts.find(x=>x.id===id):{name:"",value:"",moeda:"BRL"};
+  const a=id?D.accounts.find(x=>x.id===id):{name:"",value:"",moeda:"BRL",isInvest:false};
   const isUSD=a.moeda==="USD";
   _accUSD=isUSD;
+  _accInvest=!!a.isInvest;
   modal(`<h3>${id?"Editar saldo":"Nova conta"}</h3>
     <div class="fld"><label>Nome</label><input id="f-name" value="${a.name}"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <span style="font-size:13px">Conta em dólar (USD)?</span>
       <div class="toggle ${isUSD?"on":""}" id="acc-usd-toggle" onclick="toggleAccUSD()"><b></b></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><span style="font-size:13px">Conta de investimento?</span><div class="note" style="font-size:11px">Separada do saldo disponível</div></div>
+      <div class="toggle ${a.isInvest?"on":""}" id="acc-invest-toggle" onclick="toggleAccInvest()"><b></b></div>
     </div>
     <div class="fld">
       <label id="f-aval-lbl">Saldo atual (${isUSD?"US$":"R$"})</label>
@@ -778,6 +794,7 @@ function openAcc(id){
   updateAccPreview();
 }
 let _accUSD=false;
+let _accInvest=false;
 function openAccInit(isUSD){_accUSD=isUSD;}
 function toggleAccUSD(){
   _accUSD=!_accUSD;
@@ -785,6 +802,10 @@ function toggleAccUSD(){
   document.getElementById("f-aval-lbl").textContent="Saldo atual ("+(_accUSD?"US$":"R$")+")";
   document.getElementById("acc-preview").style.display=_accUSD?"block":"none";
   updateAccPreview();
+}
+function toggleAccInvest(){
+  _accInvest=!_accInvest;
+  document.getElementById("acc-invest-toggle").className="toggle"+(_accInvest?" on":"");
 }
 function updateAccPreview(){
   const el=document.getElementById("acc-preview");if(!el)return;
@@ -800,9 +821,10 @@ function saveAcc(id){
   const value=parseFloat(document.getElementById("f-aval").value)||0;
   const tog=document.getElementById("acc-usd-toggle");
   const moeda=tog&&tog.classList.contains("on")?"USD":"BRL";
+  const isInvest=_accInvest;
   if(!name)return;
-  if(id){const a=D.accounts.find(x=>x.id===id);a.name=name;a.value=value;a.moeda=moeda;}
-  else D.accounts.push({id:nid(),name,value,moeda});
+  if(id){const a=D.accounts.find(x=>x.id===id);a.name=name;a.value=value;a.moeda=moeda;a.isInvest=isInvest;}
+  else D.accounts.push({id:nid(),name,value,moeda,isInvest});
   closeModal();save();
 }
 function delAcc(id){D.accounts=D.accounts.filter(x=>x.id!==id);closeModal();save()}
