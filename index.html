@@ -420,7 +420,8 @@ function updateNuDue(month,val){
 }
 
 function openNuPurchase(id,fromMonth){
-  const p=id?D.nuPurchases.find(x=>x.id===id):{desc:"",value:"",date:new Date().toISOString().slice(0,10),cat:"Cartão",installments:1};
+  const defaultDate=fromMonth?fromMonth+"-01":new Date().toISOString().slice(0,10);
+  const p=id?D.nuPurchases.find(x=>x.id===id):{desc:"",value:"",date:defaultDate,cat:"Cartão",installments:1};
   const backMonth=fromMonth||curMonth;
   modal(`<h3>${id?"Editar compra":"Nova compra"} <span class="nu-badge">Nu</span></h3>
     <div class="fld"><label>Descrição da compra</label><input id="nu-desc" value="${p.desc}" placeholder="ex: iPhone, Mercado, Netflix…"></div>
