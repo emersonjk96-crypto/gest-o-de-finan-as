@@ -918,6 +918,8 @@ function setupFixas(){
 render();
 fbInit();
 if(D.usdAuto)updateUSD(true);
+// Auto-atualizar cotações ao abrir e a cada 30 min
+if(D.brapiToken){setTimeout(function(){updatePrices()},3000);setInterval(function(){updatePrices()},30*60*1000);}
 </script>
 </body>
 </html>
