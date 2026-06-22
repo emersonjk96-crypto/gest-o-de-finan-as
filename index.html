@@ -501,40 +501,59 @@ function delNuPurchase(id,fromMonth){
   setTimeout(()=>openNubank(fromMonth||curMonth),150);
 }
 
-/* ---------- FIREBASE SYNC ---------- */
+/* ---------- FIREBASE SYNC (sem login — por código) ---------- */
 const fbConfig={apiKey:"AIzaSyCv14OWtQcnx9WC20Q3fzXOtJtDL1gE-Ok",authDomain:"painel-financeiro-e48e4.firebaseapp.com",projectId:"painel-financeiro-e48e4",storageBucket:"painel-financeiro-e48e4.firebasestorage.app",messagingSenderId:"1028502749170",appId:"1:1028502749170:web:0bdaa49aa5b1e2e82db56b"};
-let fbAuth=null,fbDb=null,fbUser=null,fbUnsub=null,pushTimer2=null;
+const SKSTORE="painel_fin_syncid";
+function genSyncId(){return "xxxxxxxx-xxxx-4xxx-yxxx".replace(/[xy]/g,function(c){const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16)})+Date.now().toString(36)}
+function getSyncId(){let k=localStorage.getItem(SKSTORE);if(!k){k=genSyncId();localStorage.setItem(SKSTORE,k)}return k}
+let syncId=getSyncId();
+let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
 function fbInit(){
-  try{firebase.initializeApp(fbConfig);fbAuth=firebase.auth();fbDb=firebase.firestore();}catch(e){cloudBadge("err","sem conexao");return;}
-  fbAuth.onAuthStateChanged(function(u){
-    fbUser=u;renderAuth();
-    if(u){
-      cloudBadge("","sincronizando...");
-      const ref=fbDb.collection("users").doc(u.uid);
-      if(fbUnsub)fbUnsub();
-      fbUnsub=ref.onSnapshot(function(snap){
-        if(snap.exists&&snap.data().data){
-          const rem=snap.data().data;
-          if((rem.updatedAt||0)>(D.updatedAt||0)){D=rem;migrate();saveLocal();render();}
-          else if((rem.updatedAt||0)<(D.updatedAt||0)){fbPush();}
-        }else{ref.set({data:D,updatedAt:D.updatedAt||Date.now()});}
-        cloudBadge("on","sincronizado");
-      },function(){cloudBadge("err","erro");});
-    }else{ if(fbUnsub){fbUnsub();fbUnsub=null;} cloudBadge("","entrar"); }
-  });
+  try{firebase.initializeApp(fbConfig);fbDb=firebase.firestore();}catch(e){cloudBadge("err","offline");return;}
+  fbListen();
+  renderAuth();
 }
-function fbLogin(){
-  const p=new firebase.auth.GoogleAuthProvider();
-  if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)){fbAuth.signInWithRedirect(p);}
-  else{fbAuth.signInWithPopup(p).catch(function(e){if((e.code||"").indexOf("popup")>-1)fbAuth.signInWithRedirect(p);else alert("Erro no login: "+e.message);});}
+function fbListen(){
+  if(fbUnsub){fbUnsub();fbUnsub=null;}
+  if(!fbDb)return;
+  cloudBadge("","conectando...");
+  const ref=fbDb.collection("syncs").doc(syncId);
+  fbUnsub=ref.onSnapshot(function(snap){
+    if(snap.exists&&snap.data().data){
+      const rem=snap.data().data;
+      if((rem.updatedAt||0)>(D.updatedAt||0)){D=rem;migrate();saveLocal();render();}
+      else if((rem.updatedAt||0)<(D.updatedAt||0)){fbPush();}
+    }else{fbPush();}
+    cloudBadge("on","sincronizado");
+  },function(){cloudBadge("err","erro");});
 }
-function fbLogout(){if(fbAuth)fbAuth.signOut();}
-function fbPush(){if(!fbUser||!fbDb)return;fbDb.collection("users").doc(fbUser.uid).set({data:D,updatedAt:D.updatedAt||Date.now()}).catch(function(){});}
-function schedulePush(){if(!fbUser)return;clearTimeout(pushTimer2);pushTimer2=setTimeout(fbPush,900);}
-function renderAuth(){const b=document.getElementById("acc-box");if(!b)return;
-  if(fbUser){b.innerHTML='<div class="row"><div class="name"><b>Conectado</b><small>'+(fbUser.email||fbUser.displayName||"")+'</small></div><button class="btn ghost sm" onclick="fbLogout()">Sair</button></div><p class="note">Sincronização automática ligada. Abra o mesmo site no celular com o mesmo Google — os dados sincronizam em tempo real.</p>';}
-  else{b.innerHTML='<button class="btn" style="width:100%" onclick="fbLogin()">Entrar com Google</button><p class="note">Entre com sua conta Google. Depois tudo sincroniza automaticamente entre celular e PC.</p>';}
+function fbPush(){if(!fbDb)return;fbDb.collection("syncs").doc(syncId).set({data:D,updatedAt:D.updatedAt||Date.now()}).catch(function(){});}
+function schedulePush(){clearTimeout(pushTimer2);pushTimer2=setTimeout(fbPush,900);}
+function copySyncId(){navigator.clipboard.writeText(syncId).then(function(){alert("Código copiado! Cole no outro dispositivo em Mais → Sincronização.")}).catch(function(){prompt("Copie este código:",syncId);})}
+function applySyncId(){
+  const v=(document.getElementById("sync-input")||{value:""}).value.trim();
+  if(!v||v===syncId)return;
+  if(!confirm("Conectar a este código? Os dados locais serão substituídos pelos dados sincronizados."))return;
+  localStorage.setItem(SKSTORE,v);syncId=v;fbListen();renderAuth();
+}
+function renderAuth(){
+  const b=document.getElementById("acc-box");if(!b)return;
+  const short=syncId.slice(0,8)+"…";
+  b.innerHTML=`
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Seu código de sincronização</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input value="${syncId}" readonly style="flex:1;font-size:11px;font-family:monospace;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 10px">
+        <button class="btn sm" onclick="copySyncId()">Copiar</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Conectar outro dispositivo</div>
+    <div style="display:flex;gap:8px">
+      <input id="sync-input" placeholder="Cole o código do outro dispositivo" style="flex:1;font-size:11px">
+      <button class="btn sm" onclick="applySyncId()">Conectar</button>
+    </div>
+    <p class="note" style="margin-top:8px">Copie o código acima e cole no celular. Sem login necessário.</p>`;
 }
 
 /* ---------- COTAÇÕES ---------- */
@@ -546,23 +565,27 @@ async function updateUSD(silent){
 }
 async function updatePrices(){
   if(!D.brapiToken){alert("Configure o token do brapi em Mais → Cotações.");nav("more");return}
-  const allTk=[...new Set(D.invest.map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
-  if(!allTk.length){alert("Sem ativos.");return}
+  if(!D.invest.length){alert("Sem ativos.");return}
   document.getElementById("i-priceinfo").textContent="Buscando preços...";
   const map={};let ok=0,miss=[];
-  // 1) Brapi — todos os tickers (funciona bem para B3)
-  try{
-    const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(allTk.join(","))+"?token="+encodeURIComponent(D.brapiToken));
-    const j=await r.json();
-    (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
-  }catch(e){}
-  // 2) Yahoo Finance — fallback para ativos USD não encontrados pelo brapi
-  const usdTk=D.invest.filter(i=>i.moeda==="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(t=>t&&!map[t]);
-  if(usdTk.length){
+  // 1) Brapi — apenas tickers BRL (B3)
+  const brTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  if(brTk.length){
     try{
-      const yUrl="https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols="+encodeURIComponent(usdTk.join(","));
-      const yr=await fetch(yUrl);const yj=await yr.json();
-      (yj.quoteResponse?.result||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
+      const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(brTk.join(","))+"?token="+encodeURIComponent(D.brapiToken));
+      const j=await r.json();
+      (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
+    }catch(e){}
+  }
+  // 2) Yahoo Finance — tickers USD individualmente via chart API (mais confiável que batch)
+  const usdItems=D.invest.filter(i=>i.moeda==="USD");
+  for(const it of usdItems){
+    const t=(it.ticker||it.ativo||"").split(" ")[0];if(!t||map[t]!=null)continue;
+    try{
+      const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(t)+"?interval=1d&range=1d");
+      const j=await r.json();
+      const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if(p!=null)map[t]=p;
     }catch(e){}
   }
   D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
