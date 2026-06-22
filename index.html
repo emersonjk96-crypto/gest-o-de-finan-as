@@ -385,8 +385,13 @@ function delNuFatura(month){
 }
 
 function updateNuDue(month,val){
-  const b=D.bills.find(b=>b.isNubank&&b.month===month);
-  if(b&&val){b.due=val;save();}
+  if(!val)return;
+  // Pega só o dia (ex: "15") e replica para todos os meses da Fatura Nu
+  const day=val.split("-")[2];
+  D.bills.filter(b=>b.isNubank).forEach(b=>{
+    b.due=b.month+"-"+day;
+  });
+  save();
 }
 
 function openNuPurchase(id,fromMonth){
@@ -445,10 +450,11 @@ function saveNuPurchase(id,fromMonth){
     D.nuPurchases.push({id:nid(),desc,value,date,cat,installments,startMonth});
   }
   recalcNubank();
-  curMonth=fromMonth||startMonth;
+  // Navega para o mês da compra (startMonth), não o mês antigo
+  curMonth=startMonth;
   closeModal();
   save();
-  setTimeout(()=>openNubank(fromMonth||startMonth),150);
+  setTimeout(()=>openNubank(startMonth),150);
 }
 
 function delNuPurchase(id,fromMonth){
