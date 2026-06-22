@@ -246,7 +246,16 @@ function migrate(){
   if(!Array.isArray(D.nuPurchases))D.nuPurchases=[];
   ["accounts","bills","invest","cards","metas"].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});
   if(!D.cats||!D.cats.length)D.cats=structuredClone(DEFAULT.cats);
-  D.bills.forEach(b=>{ if(!b.type)b.type="expense"; if(!b.cat)b.cat=catFor(b.desc); });
+  D.bills.forEach(b=>{
+    if(!b.type)b.type="expense";
+    if(!b.cat)b.cat=catFor(b.desc);
+    // Migra qualquer bill com "fatura nu" no nome para o novo sistema isNubank
+    if(!b.isNubank && /fatura\s*nu/i.test(b.desc)){
+      b.isNubank=true;
+      b.desc="Fatura Nu";
+      b.cat="Cartão";
+    }
+  });
   D.invest.forEach(i=>{ if(!i.ticker)i.ticker=(i.ativo||"").split(" ")[0]; if(i.price===undefined||i.price===null)i.price=i.qtd?(+i.atual/i.qtd):0; });
   D.accounts.forEach(a=>{ if(a.name==="Carteira99")a.name="Carteira"; });
   if(!Array.isArray(D.months)||!D.months.length)D.months=[...new Set(D.bills.map(b=>b.month))].sort();
