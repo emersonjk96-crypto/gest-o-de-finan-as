@@ -577,16 +577,36 @@ async function updatePrices(){
       (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
     }catch(e){}
   }
-  // 2) Yahoo Finance — tickers USD individualmente via chart API (mais confiável que batch)
+  // 2) Yahoo Finance via proxy CORS — tickers USD
   const usdItems=D.invest.filter(i=>i.moeda==="USD");
-  for(const it of usdItems){
-    const t=(it.ticker||it.ativo||"").split(" ")[0];if(!t||map[t]!=null)continue;
-    try{
-      const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(t)+"?interval=1d&range=1d");
-      const j=await r.json();
-      const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if(p!=null)map[t]=p;
-    }catch(e){}
+  const usdTkSet=[...new Set(usdItems.map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  if(usdTkSet.length){
+    // Tenta batch primeiro
+    const yBase="https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&symbols="+encodeURIComponent(usdTkSet.join(","));
+    const proxies=["https://corsproxy.io/?","https://api.allorigins.win/raw?url="];
+    let yOk=false;
+    for(const px of proxies){
+      if(yOk)break;
+      try{
+        const r=await fetch(px+encodeURIComponent(yBase));
+        const j=await r.json();
+        (j.quoteResponse?.result||[]).forEach(q=>{if(q.regularMarketPrice!=null){map[q.symbol]=q.regularMarketPrice;yOk=true;}});
+      }catch(e){}
+    }
+    // Se nenhum proxy funcionou, tenta individualmente via chart
+    if(!yOk){
+      for(const t of usdTkSet){
+        if(map[t]!=null)continue;
+        for(const px of proxies){
+          try{
+            const r=await fetch(px+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+t+"?interval=1d&range=1d"));
+            const j=await r.json();
+            const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
+            if(p!=null){map[t]=p;break;}
+          }catch(e){}
+        }
+      }
+    }
   }
   D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
   save();
