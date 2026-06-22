@@ -563,10 +563,14 @@ async function updateUSD(silent){
     if(v){D.usd=Math.round(v*100)/100;saveLocal();render();document.getElementById("usd-info").textContent="Atualizado: R$ "+D.usd.toFixed(2)}}
   catch(e){if(!silent)alert("Não consegui buscar o dólar agora.")}
 }
-async function updatePrices(){
-  if(!D.brapiToken){alert("Configure o token do brapi em Mais → Cotações.");nav("more");return}
-  if(!D.invest.length){alert("Sem ativos.");return}
-  document.getElementById("i-priceinfo").textContent="Buscando preços...";
+let _priceUpdating=false;
+function setPriceInfo(txt){const el=document.getElementById("i-priceinfo");if(el)el.textContent=txt;}
+async function updatePrices(silent){
+  if(_priceUpdating)return;
+  if(!D.brapiToken){if(!silent){alert("Configure o token do brapi em Mais → Cotações.");nav("more");}return}
+  if(!D.invest.length){if(!silent)alert("Sem ativos.");return}
+  _priceUpdating=true;
+  setPriceInfo("Buscando preços...");
   const map={};let ok=0,miss=[];
   // 1) Brapi — apenas tickers BRL (B3)
   const brTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
@@ -577,40 +581,27 @@ async function updatePrices(){
       (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
     }catch(e){}
   }
-  // 2) Yahoo Finance via proxy CORS — tickers USD
-  const usdItems=D.invest.filter(i=>i.moeda==="USD");
-  const usdTkSet=[...new Set(usdItems.map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
-  if(usdTkSet.length){
-    // Tenta batch primeiro
-    const yBase="https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&symbols="+encodeURIComponent(usdTkSet.join(","));
-    const proxies=["https://corsproxy.io/?","https://api.allorigins.win/raw?url="];
-    let yOk=false;
+  // 2) Yahoo Finance via proxy CORS — tickers USD individualmente
+  const usdTkSet=[...new Set(D.invest.filter(i=>i.moeda==="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  const proxies=["https://corsproxy.io/?","https://api.allorigins.win/raw?url="];
+  for(const t of usdTkSet){
+    if(map[t]!=null)continue;
+    let got=false;
     for(const px of proxies){
-      if(yOk)break;
+      if(got)break;
       try{
-        const r=await fetch(px+encodeURIComponent(yBase));
+        const url=px+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+t+"?interval=1d&range=1d");
+        const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
         const j=await r.json();
-        (j.quoteResponse?.result||[]).forEach(q=>{if(q.regularMarketPrice!=null){map[q.symbol]=q.regularMarketPrice;yOk=true;}});
+        const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
+        if(p!=null){map[t]=p;got=true;}
       }catch(e){}
-    }
-    // Se nenhum proxy funcionou, tenta individualmente via chart
-    if(!yOk){
-      for(const t of usdTkSet){
-        if(map[t]!=null)continue;
-        for(const px of proxies){
-          try{
-            const r=await fetch(px+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+t+"?interval=1d&range=1d"));
-            const j=await r.json();
-            const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
-            if(p!=null){map[t]=p;break;}
-          }catch(e){}
-        }
-      }
     }
   }
   D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
   save();
-  document.getElementById("i-priceinfo").textContent=`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:"");
+  setPriceInfo(`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:""));
+  _priceUpdating=false;
 }
 function toggleUSD(){D.usdAuto=!D.usdAuto;save();if(D.usdAuto)updateUSD()}
 function saveBrapi(){D.brapiToken=document.getElementById("cfg-brapi").value.trim();save();alert("Token salvo!")}
@@ -724,9 +715,13 @@ document.getElementById("i-list").innerHTML=D.invest.length?(grp("Nacional",nac)
 }
 function renderMore(){
   document.getElementById("m-cards").innerHTML=D.cards.length?D.cards.map(c=>{
-    const used=D.bills.filter(b=>b.card===c.id&&!b.paid&&b.type!=="income").reduce((s,b)=>s+ +b.value,0);
+    const isNu=/nubank/i.test(c.name);
+    const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+    const over=c.limit&&used>c.limit;
     const pct=c.limit?Math.min(100,Math.round(used/c.limit*100)):0;
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openCard(${c.id})">${c.name}</b><span class="note">${fmt0(used)} / ${fmt0(c.limit)}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${pct>80?"var(--red)":"var(--accent)"}"></div></div></div>`;
+    const barColor=over?"var(--red)":pct>80?"var(--amber)":"var(--accent)";
+    const usedStr=over?`<span style="color:var(--red)">${fmt0(used)}</span>`:fmt0(used);
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openCard(${c.id})">${c.name}</b><span class="note">${usedStr} / ${fmt0(c.limit)}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${barColor}"></div></div></div>`;
   }).join(""):'<div class="empty">Nenhum cartão.</div>';
   document.getElementById("m-metas").innerHTML=D.metas.length?D.metas.map(g=>{
     const pct=g.target?Math.min(100,Math.round(g.current/g.target*100)):0;
@@ -939,7 +934,7 @@ render();
 fbInit();
 if(D.usdAuto)updateUSD(true);
 // Auto-atualizar cotações ao abrir e a cada 30 min
-if(D.brapiToken){setTimeout(function(){updatePrices()},3000);setInterval(function(){updatePrices()},30*60*1000);}
+if(D.brapiToken){setTimeout(function(){updatePrices(true)},3000);setInterval(function(){updatePrices(true)},30*60*1000);}
 </script>
 </body>
 </html>
