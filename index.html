@@ -124,6 +124,7 @@ canvas{max-width:100%}
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <button class="btn sm" style="flex:1" onclick="openTx(0,'expense')">+ Despesa</button>
       <button class="btn sm ghost" style="flex:1" onclick="openTx(0,'income')">+ Receita</button>
+      <button class="btn sm" style="flex:1;background:linear-gradient(135deg,#8b00d4,#6200ea)" onclick="openNubank(curMonth)">💳 Fatura Nu</button>
     </div>
     <div id="b-list"></div>
   </div>
@@ -364,8 +365,23 @@ function openNubank(month){
     html+=`<div class="empty">Nenhuma compra nesta fatura.<br>Toque em "+ Adicionar compra" para começar.</div>`;
   }
 
-  html+=`<div style="margin-top:16px"><button class="btn ghost" style="width:100%" onclick="closeModal()">Fechar</button></div>`;
+  html+=`<div style="margin-top:16px;display:flex;gap:8px">
+    <button class="btn ghost" style="flex:1" onclick="closeModal()">Fechar</button>
+    <button class="btn danger" style="flex:1" onclick="delNuFatura('${month}')">🗑 Excluir fatura</button>
+  </div>`;
   modal(html);
+}
+
+function delNuFatura(month){
+  if(!confirm("Excluir a Fatura Nu de "+mLabel(month)+"?\nIsso remove o registro da fatura e as compras originadas neste mês."))return;
+  // Remove o bill isNubank deste mês
+  D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===month));
+  // Remove compras que começaram neste mês
+  D.nuPurchases=D.nuPurchases.filter(p=>p.startMonth!==month);
+  // Recalcula parcelas de outros meses que possam ter gerado bills aqui
+  recalcNubank();
+  closeModal();
+  save();
 }
 
 function updateNuDue(month,val){
