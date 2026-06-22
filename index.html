@@ -546,17 +546,28 @@ async function updateUSD(silent){
 }
 async function updatePrices(){
   if(!D.brapiToken){alert("Configure o token do brapi em Mais → Cotações.");nav("more");return}
-  const tk=[...new Set(D.invest.map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
-  if(!tk.length){alert("Sem ativos.");return}
+  const allTk=[...new Set(D.invest.map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  if(!allTk.length){alert("Sem ativos.");return}
   document.getElementById("i-priceinfo").textContent="Buscando preços...";
+  const map={};let ok=0,miss=[];
+  // 1) Brapi — todos os tickers (funciona bem para B3)
   try{
-    const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(tk.join(","))+"?token="+encodeURIComponent(D.brapiToken));
-    const j=await r.json();const map={};(j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
-    let ok=0,miss=[];
-    D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
-    save();
-    document.getElementById("i-priceinfo").textContent=`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:"");
-  }catch(e){document.getElementById("i-priceinfo").textContent="Erro ao buscar ("+e.message+"). Verifique o token.";}
+    const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(allTk.join(","))+"?token="+encodeURIComponent(D.brapiToken));
+    const j=await r.json();
+    (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
+  }catch(e){}
+  // 2) Yahoo Finance — fallback para ativos USD não encontrados pelo brapi
+  const usdTk=D.invest.filter(i=>i.moeda==="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(t=>t&&!map[t]);
+  if(usdTk.length){
+    try{
+      const yUrl="https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols="+encodeURIComponent(usdTk.join(","));
+      const yr=await fetch(yUrl);const yj=await yr.json();
+      (yj.quoteResponse?.result||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
+    }catch(e){}
+  }
+  D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
+  save();
+  document.getElementById("i-priceinfo").textContent=`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:"");
 }
 function toggleUSD(){D.usdAuto=!D.usdAuto;save();if(D.usdAuto)updateUSD()}
 function saveBrapi(){D.brapiToken=document.getElementById("cfg-brapi").value.trim();save();alert("Token salvo!")}
@@ -708,13 +719,14 @@ function addMonth(){
   curMonth=nm;save();
 }
 
-/* ⚡ APENAS a conta "Carteira" é debitada ao marcar como pago */
+/* ⚡ Carteira: débito em despesas, crédito em receitas */
 function togglePaid(id){
   const b=D.bills.find(x=>x.id===id);
   b.paid=!b.paid;
-  if(b.type!=="income"){
-    const c=D.accounts.find(a=>a.name==="Carteira");
-    if(c) c.value=Math.round((c.value+(b.paid?-1:1)*(+b.value))*100)/100;
+  const c=D.accounts.find(a=>a.name==="Carteira");
+  if(c){
+    const sign=b.type==="income"?1:-1;
+    c.value=Math.round((c.value+(b.paid?sign:-sign)*(+b.value))*100)/100;
   }
   save();
 }
