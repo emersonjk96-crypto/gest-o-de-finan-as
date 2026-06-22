@@ -282,6 +282,15 @@ function catColor(n){return CATCOLORS[n]||"#6b7a90"}
 function ensureMonth(m){if(!D.months.includes(m)){D.months.push(m);D.months.sort()}}
 
 /* ---------- NUBANK FATURA ---------- */
+// Fechamento dia 8, vencimento dia 15
+// Compras a partir do dia 8 entram na fatura do próximo mês
+function nuStartMonth(dateStr){
+  const parts=dateStr.split("-");
+  const y=+parts[0],m=+parts[1],d=+parts[2];
+  if(d>=8)return addM(y+"-"+String(m).padStart(2,"0"),1);
+  return y+"-"+String(m).padStart(2,"0");
+}
+
 function getNubankTotal(month){
   return D.nuPurchases.reduce((sum,p)=>{
     const idx=monthDiff(p.startMonth,month);
@@ -311,7 +320,7 @@ function recalcNubank(){
       if(ex){
         ex.value=total;
       } else {
-        D.bills.push({id:nid(),month:m,desc:"Fatura Nu",due:m+"-27",value:total,paid:false,type:"expense",cat:"Cartão",isNubank:true});
+        D.bills.push({id:nid(),month:m,desc:"Fatura Nu",due:m+"-15",value:total,paid:false,type:"expense",cat:"Cartão",isNubank:true});
       }
     } else if(ex){
       D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===m));
@@ -468,7 +477,7 @@ function saveNuPurchase(id,fromMonth){
   const cat=document.getElementById("nu-cat").value;
   const installments=Math.max(1,parseInt(document.getElementById("nu-inst").value)||1);
   if(!desc||!value||!date){alert("Preencha descrição, valor e data.");return}
-  const startMonth=date.slice(0,7);
+  const startMonth=nuStartMonth(date);
   if(id){
     const p=D.nuPurchases.find(x=>x.id===id);
     Object.assign(p,{desc,value,date,cat,installments,startMonth});
