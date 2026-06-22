@@ -370,7 +370,11 @@ function openNubank(month){
     <button class="btn danger" style="flex:1" onclick="delNuFatura('${month}')">🗑 Excluir fatura</button>
   </div>
   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-    <button class="btn ghost" style="width:100%;font-size:12px;color:var(--amber)" onclick="shiftNuPurchases(1)">⚠️ Corrigir: avançar todas as compras 1 mês</button>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:center">Ajuste de mês (use com cuidado)</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1;font-size:12px;color:var(--red)" onclick="shiftNuPurchases(-1)">← Voltar 1 mês</button>
+      <button class="btn ghost" style="flex:1;font-size:12px;color:var(--amber)" onclick="shiftNuPurchases(1)">Avançar 1 mês →</button>
+    </div>
   </div>`;
   modal(html);
 }
