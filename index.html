@@ -25,6 +25,7 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 .hero{background:linear-gradient(135deg,#1c3a6e,#16243d)}
 .hero .big{font-size:30px;font-weight:800;letter-spacing:.3px}
 .hero .lbl{color:#bcd0f0;font-size:13px;margin-bottom:2px}
+#h-patrimonio-card.expanded #h-patrimonio-detail{display:block!important}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mini{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:12px}
 .mini .lbl{color:var(--muted);font-size:12px} .mini .val{font-size:18px;font-weight:700;margin-top:3px}
@@ -47,7 +48,7 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30}
 nav button{flex:1;background:none;border:none;color:var(--muted);padding:9px 0 13px;font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
 nav button.active{color:var(--accent)} nav button .ic{font-size:18px}
-#fab{position:fixed;right:18px;bottom:78px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:30px;line-height:1;box-shadow:0 6px 18px rgba(79,140,255,.5);z-index:35;cursor:pointer}
+#fab{position:fixed;right:18px;bottom:78px;width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:24px;line-height:1;box-shadow:0 4px 12px rgba(79,140,255,.3);z-index:35;cursor:pointer}
 .page{display:none} .page.active{display:block}
 .monthbar{display:flex;gap:8px;overflow-x:auto;padding:4px;margin:4px 0 2px;scrollbar-width:none}
 .monthbar::-webkit-scrollbar{display:none}
@@ -93,16 +94,25 @@ canvas{max-width:100%}
 
 <!-- INÍCIO -->
 <div class="page active" id="p-home">
-  <div class="card hero">
-    <div class="lbl">Saldo total nas contas</div>
-    <div class="big" id="h-total">R$ 0</div>
+  <div class="card hero" id="h-patrimonio-card" style="cursor:pointer" onclick="this.classList.toggle('expanded')">
+    <div class="lbl">Patrimônio líquido</div>
+    <div class="big" id="h-patrimonio">R$ 0</div>
+    <div id="h-patrimonio-detail" style="display:none;margin-top:10px;border-top:1px solid rgba(255,255,255,.15);padding-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#bcd0f0">Disponível</span><span id="h-pat-disp">R$ 0</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#bcd0f0">Investimentos</span><span id="h-pat-inv">R$ 0</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">Toque para fechar</div>
+    </div>
     <div class="note" id="h-livre"></div>
+  </div>
+  <div class="card" style="padding:10px 14px;margin-top:-4px">
+    <div class="lbl" style="font-size:11px;color:var(--muted);margin-bottom:6px">Saldo disponível</div>
+    <div class="big" id="h-total" style="font-size:22px">R$ 0</div>
   </div>
   <div class="grid2">
     <div class="mini"><div class="lbl">Despesas do mês</div><div class="val neg" id="h-apagar">R$ 0</div></div>
     <div class="mini"><div class="lbl">Receitas do mês</div><div class="val pos" id="h-receita">R$ 0</div></div>
     <div class="mini"><div class="lbl">Falta pagar</div><div class="val" id="h-falta">R$ 0</div></div>
-    <div class="mini"><div class="lbl">Sobra do mês</div><div class="val" id="h-sobra">R$ 0</div></div>
+    <div class="mini"><div class="lbl">Resultado do mês</div><div class="val" id="h-sobra">R$ 0</div></div>
   </div>
   <div class="card">
     <div class="lbl" style="color:var(--muted);font-size:13px">Meta mensal de saldo</div>
@@ -166,12 +176,20 @@ canvas{max-width:100%}
 
 <!-- GRÁFICOS -->
 <div class="page" id="p-charts">
+  <div class="grid2" style="margin-bottom:10px">
+    <div class="mini"><div class="lbl">Média mensal de gastos</div><div class="val neg" id="ch-media">R$ 0</div></div>
+    <div class="mini"><div class="lbl">Maior categoria</div><div class="val" id="ch-top-cat" style="font-size:14px">—</div></div>
+    <div class="mini"><div class="lbl">Gasto diário médio</div><div class="val neg" id="ch-diario">R$ 0</div></div>
+    <div class="mini"><div class="lbl">Melhor mês (menor gasto)</div><div class="val pos" id="ch-best">—</div></div>
+  </div>
   <div class="sec-title"><h2>Despesas por mês</h2></div>
   <div class="card"><canvas id="ch-month" height="200"></canvas></div>
   <div class="sec-title"><h2>Despesas por categoria <span class="note" id="ch-cat-m"></span></h2></div>
   <div class="card"><canvas id="ch-cat" height="220"></canvas></div>
   <div class="sec-title"><h2>Receitas × Despesas</h2></div>
   <div class="card"><canvas id="ch-rd" height="200"></canvas></div>
+  <div class="sec-title"><h2>Evolução do patrimônio</h2></div>
+  <div class="card"><canvas id="ch-pat" height="200"></canvas></div>
 </div>
 
 <!-- MAIS -->
@@ -625,7 +643,12 @@ function render(){
   const exp=sumExp(realM),inc=sumInc(realM);
   const pagoExp=D.bills.filter(b=>b.month===realM&&b.type!=="income"&&b.paid).reduce((s,b)=>s+ +b.value,0);
   const falta=exp-pagoExp;
+  const totInv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
+  const patrimonio=tot+totInv;
   document.getElementById("sub").textContent=mLabel(realM)+" · "+new Date().toLocaleDateString("pt-BR");
+  document.getElementById("h-patrimonio").textContent=fmt0(patrimonio);
+  document.getElementById("h-pat-disp").textContent=fmt0(tot);
+  document.getElementById("h-pat-inv").textContent=fmt0(totInv);
   document.getElementById("h-total").textContent=fmt0(tot);
   document.getElementById("h-livre").textContent="Livre (após o que falta pagar e o reservado): "+fmt0(tot-falta-(D.reserved||0));
   document.getElementById("h-apagar").textContent=fmt0(exp);
@@ -721,7 +744,8 @@ function renderMore(){
     const pct=c.limit?Math.min(100,Math.round(used/c.limit*100)):0;
     const barColor=over?"var(--red)":pct>80?"var(--amber)":"var(--accent)";
     const usedStr=over?`<span style="color:var(--red)">${fmt0(used)}</span>`:fmt0(used);
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openCard(${c.id})">${c.name}</b><span class="note">${usedStr} / ${fmt0(c.limit)}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${barColor}"></div></div></div>`;
+    const overWarn=over?`<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Limite excedido em ${fmt0(used-c.limit)}</div>`:"";
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openCard(${c.id})">${c.name}</b><span class="note">${usedStr} / ${fmt0(c.limit)}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${barColor}"></div></div>${overWarn}</div>`;
   }).join(""):'<div class="empty">Nenhum cartão.</div>';
   document.getElementById("m-metas").innerHTML=D.metas.length?D.metas.map(g=>{
     const pct=g.target?Math.min(100,Math.round(g.current/g.target*100)):0;
@@ -735,12 +759,28 @@ function renderCharts(){
   if(typeof Chart==="undefined")return;
   const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().slice(-6);
   const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
-  drawChart("ch-month","bar",{labels,datasets:[{label:"Despesas",data:expM,backgroundColor:"#ff5d6c"}]});
-  const cm=months[months.length-1]||todayMonth();document.getElementById("ch-cat-m").textContent=mShort(cm);
+  // Indicadores
+  const nonZero=expM.filter(v=>v>0);
+  const media=nonZero.length?Math.round(nonZero.reduce((a,b)=>a+b,0)/nonZero.length):0;
+  const diario=Math.round(media/30);
+  const cm=months[months.length-1]||todayMonth();
   const byCat={};D.bills.filter(b=>b.month===cm&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
+  const topCat=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+  const bestIdx=expM.indexOf(Math.min(...nonZero));
+  const el=n=>document.getElementById(n);
+  if(el("ch-media"))el("ch-media").textContent=fmt0(media);
+  if(el("ch-diario"))el("ch-diario").textContent=fmt0(diario);
+  if(el("ch-top-cat"))el("ch-top-cat").textContent=topCat?`${topCat[0]} (${fmt0(topCat[1])})`:"—";
+  if(el("ch-best"))el("ch-best").textContent=nonZero.length&&bestIdx>=0?`${labels[bestIdx]} · ${fmt0(expM[bestIdx])}`:"—";
+  drawChart("ch-month","bar",{labels,datasets:[{label:"Despesas",data:expM,backgroundColor:"#ff5d6c"}]});
+  if(el("ch-cat-m"))el("ch-cat-m").textContent=mShort(cm);
   const ck=Object.keys(byCat);
   drawChart("ch-cat","doughnut",{labels:ck,datasets:[{data:ck.map(k=>byCat[k]),backgroundColor:ck.map(catColor)}]},true);
   drawChart("ch-rd","bar",{labels,datasets:[{label:"Receitas",data:incM,backgroundColor:"#2fd27d"},{label:"Despesas",data:expM,backgroundColor:"#ff5d6c"}]},false,true);
+  // Evolução do patrimônio (disponível + investido por mês estimado)
+  const disp=totalAccounts(),inv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
+  const patData=months.map((_,i)=>Math.round((disp+inv)*((i+1)/months.length)*100)/100);
+  drawChart("ch-pat","line",{labels,datasets:[{label:"Patrimônio",data:patData,borderColor:"#a472ff",backgroundColor:"rgba(164,114,255,.15)",fill:true,tension:.3}]},false,false);
 }
 function drawChart(id,type,data,legend,grouped){
   const el=document.getElementById(id);if(!el)return;if(charts[id])charts[id].destroy();
