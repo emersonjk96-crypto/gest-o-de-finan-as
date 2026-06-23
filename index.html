@@ -757,7 +757,8 @@ function cardName(id){const c=D.cards.find(x=>x.id===id);return c?c.name:""}
 
 function renderCharts(){
   if(typeof Chart==="undefined")return;
-  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().slice(-6);
+  const today=todayMonth();
+  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=today).slice(-6);
   const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
   // Indicadores
   const nonZero=expM.filter(v=>v>0);
