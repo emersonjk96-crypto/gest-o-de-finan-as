@@ -174,22 +174,24 @@ canvas{max-width:100%}
   <div id="i-list"></div>
 </div>
 
-<!-- GRÁFICOS -->
+<!-- INSIGHTS -->
 <div class="page" id="p-charts">
-  <div class="grid2" style="margin-bottom:10px">
-    <div class="mini"><div class="lbl">Média mensal de gastos</div><div class="val neg" id="ch-media">R$ 0</div></div>
-    <div class="mini"><div class="lbl">Maior categoria</div><div class="val" id="ch-top-cat" style="font-size:14px">—</div></div>
-    <div class="mini"><div class="lbl">Gasto diário médio</div><div class="val neg" id="ch-diario">R$ 0</div></div>
-    <div class="mini"><div class="lbl">Melhor mês (menor gasto)</div><div class="val pos" id="ch-best">—</div></div>
-  </div>
-  <div class="sec-title"><h2>Despesas por mês</h2></div>
-  <div class="card"><canvas id="ch-month" height="200"></canvas></div>
-  <div class="sec-title"><h2>Despesas por categoria <span class="note" id="ch-cat-m"></span></h2></div>
-  <div class="card"><canvas id="ch-cat" height="220"></canvas></div>
-  <div class="sec-title"><h2>Receitas × Despesas</h2></div>
-  <div class="card"><canvas id="ch-rd" height="200"></canvas></div>
-  <div class="sec-title"><h2>Evolução do patrimônio</h2></div>
-  <div class="card"><canvas id="ch-pat" height="200"></canvas></div>
+  <!-- KPIs -->
+  <div id="ins-kpis"></div>
+  <!-- Patrimônio -->
+  <div class="sec-title"><h2>📈 Evolução do patrimônio</h2></div>
+  <div class="card" id="ins-pat-wrap"><canvas id="ch-pat" height="180"></canvas></div>
+  <!-- Receitas x Despesas -->
+  <div class="sec-title"><h2>💰 Receitas × Despesas</h2></div>
+  <div class="card"><canvas id="ch-rd" height="180"></canvas></div>
+  <!-- Categorias -->
+  <div class="sec-title"><h2>🏷️ Onde vai o dinheiro <span class="note" id="ch-cat-m"></span></h2></div>
+  <div class="card" id="ins-cat-wrap"></div>
+  <!-- Composição patrimônio -->
+  <div class="sec-title"><h2>🏦 Composição do patrimônio</h2></div>
+  <div class="card" id="ins-comp"></div>
+  <!-- Metas -->
+  <div id="ins-metas-wrap"></div>
 </div>
 
 <!-- MAIS -->
@@ -229,7 +231,7 @@ canvas{max-width:100%}
   <button data-p="bills" onclick="nav('bills')"><span class="ic">📅</span>Contas</button>
   <button data-p="acc" onclick="nav('acc')"><span class="ic">🏦</span>Saldos</button>
   <button data-p="inv" onclick="nav('inv')"><span class="ic">📈</span>Investir</button>
-  <button data-p="charts" onclick="nav('charts')"><span class="ic">📊</span>Gráficos</button>
+  <button data-p="charts" onclick="nav('charts')"><span class="ic">💡</span>Insights</button>
   <button data-p="more" onclick="nav('more')"><span class="ic">⚙️</span>Mais</button>
 </nav>
 
@@ -766,36 +768,65 @@ function savePatSnap(){
 function renderCharts(){
   if(typeof Chart==="undefined")return;
   const today=todayMonth();
-  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=today).slice(-6);
+  const future=addM(today,3);
+  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=future).slice(-6);
   const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
   const el=n=>document.getElementById(n);
-  // Indicadores — só fazem sentido com 2+ meses
-  const nonZero=expM.filter(v=>v>0);
-  const multi=nonZero.length>=2;
-  const media=nonZero.length?Math.round(nonZero.reduce((a,b)=>a+b,0)/nonZero.length):0;
-  const diario=Math.round(media/30);
-  const cm=months[months.length-1]||today;
-  const byCat={};D.bills.filter(b=>b.month===cm&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
-  const topCat=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
-  const bestIdx=nonZero.length?expM.indexOf(Math.min(...nonZero)):-1;
-  if(el("ch-media"))el("ch-media").textContent=multi?fmt0(media):"—";
-  if(el("ch-diario"))el("ch-diario").textContent=multi?fmt0(diario):"—";
-  if(el("ch-top-cat"))el("ch-top-cat").textContent=topCat?`${topCat[0]} (${fmt0(topCat[1])})`:"—";
-  if(el("ch-best"))el("ch-best").textContent=(multi&&bestIdx>=0)?`${labels[bestIdx]} · ${fmt0(expM[bestIdx])}`:"—";
-  // Gráfico barras — limita largura para não ocupar tela toda com poucos meses
-  const barOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}}},datasets:{bar:{maxBarThickness:60}}};
-  if(el("ch-month")){if(charts["ch-month"])charts["ch-month"].destroy();charts["ch-month"]=new Chart(el("ch-month"),{type:"bar",data:{labels,datasets:[{label:"Despesas",data:expM,backgroundColor:"#ff5d6c",borderRadius:4}]},options:barOpts});}
-  if(el("ch-cat-m"))el("ch-cat-m").textContent=mShort(cm);
-  const ck=Object.keys(byCat);
-  if(el("ch-cat")){if(charts["ch-cat"])charts["ch-cat"].destroy();charts["ch-cat"]=new Chart(el("ch-cat"),{type:"doughnut",data:{labels:ck,datasets:[{data:ck.map(k=>byCat[k]),backgroundColor:ck.map(catColor)}]},options:{responsive:true,plugins:{legend:{display:true,position:"bottom",labels:{color:"#8ea0bd",font:{size:11},boxWidth:12}}}}});}
-  if(el("ch-rd")){if(charts["ch-rd"])charts["ch-rd"].destroy();charts["ch-rd"]=new Chart(el("ch-rd"),{type:"bar",data:{labels,datasets:[{label:"Receitas",data:incM,backgroundColor:"#2fd27d",borderRadius:4},{label:"Despesas",data:expM,backgroundColor:"#ff5d6c",borderRadius:4}]},options:{...barOpts,plugins:{legend:{display:true,labels:{color:"#8ea0bd",font:{size:11}}}}}});}
-  // Evolução do patrimônio — snapshot real por mês
+  const pastMonths=months.filter(m=>m<=today);
+  const pastExp=pastMonths.map(m=>sumExp(m));
+  const pastInc=pastMonths.map(m=>sumInc(m));
+  // Categorias do mês atual
+  const byCat={};D.bills.filter(b=>b.month===today&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
+  const catEntries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const totalExp=catEntries.reduce((s,[,v])=>s+v,0);
+  // ---- KPIs ----
+  const disp=totalAccounts();
+  const inv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
+  const pat=disp+inv;
+  const expAtual=sumExp(today),incAtual=sumInc(today);
+  const taxa=incAtual?Math.round((incAtual-expAtual)/incAtual*100):0;
+  const topCat=catEntries[0];
+  const metaFalta=D.metas.length?D.metas.map(g=>Math.max(0,g.target-g.current)).reduce((a,b)=>a+b,0):null;
+  // Comparativo com mês anterior
+  const prevM=addM(today,-1);
+  const prevExp=sumExp(prevM);
+  const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
+  const kpis=[
+    {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)"},
+    {icon:"💸",label:"Taxa de poupança",val:taxa>=0?taxa+"%":"—",sub:taxa>=0?(taxa>=20?"Ótimo ritmo 🎉":"Tente chegar em 20%"):"Sem receitas no mês",color:taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--muted)"},
+    topCat?{icon:"🏷️",label:"Maior gasto do mês",val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)"}:null,
+    diffPct!==null?{icon:diffPct>0?"🔥":"✅",label:"Vs. mês anterior",val:(diffPct>0?"+":"")+diffPct+"%",sub:diffPct>0?`Gastou mais R$ ${fmt0(expAtual-prevExp)}`:`Economizou R$ ${fmt0(prevExp-expAtual)}`,color:diffPct>0?"var(--red)":"var(--green)"}:null,
+    metaFalta!==null?{icon:"🎯",label:"Para atingir as metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)"}:null,
+    inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)"}:null,
+  ].filter(Boolean);
+  if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini"><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
+  // ---- Patrimônio (line) ----
   if(!D.patHistory)D.patHistory={};
-  const patMonths=Object.keys(D.patHistory).sort().slice(-12);
-  if(el("ch-pat")){
-    if(patMonths.length<2){el("ch-pat").parentElement.innerHTML='<div class="empty" style="padding:20px 0">Os dados de evolução aparecem após o segundo mês registrado.</div>';}
-    else{if(charts["ch-pat"])charts["ch-pat"].destroy();charts["ch-pat"]=new Chart(el("ch-pat"),{type:"line",data:{labels:patMonths.map(mShort),datasets:[{label:"Patrimônio",data:patMonths.map(m=>D.patHistory[m]),borderColor:"#a472ff",backgroundColor:"rgba(164,114,255,.12)",fill:true,tension:.3,pointRadius:4,pointBackgroundColor:"#a472ff"}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd",callback:v=>fmt0(v)},grid:{color:"#243349"}}}}});}
+  const patMs=Object.keys(D.patHistory).sort().slice(-12);
+  const patWrap=el("ins-pat-wrap");
+  if(patMs.length<2){if(patWrap)patWrap.innerHTML=`<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center">📊 O gráfico de evolução aparece a partir do 2º mês registrado.</div>`;}
+  else{if(patWrap&&!patWrap.querySelector("canvas")){patWrap.innerHTML='<canvas id="ch-pat" height="180"></canvas>';}if(el("ch-pat")){if(charts["ch-pat"])charts["ch-pat"].destroy();charts["ch-pat"]=new Chart(el("ch-pat"),{type:"line",data:{labels:patMs.map(mShort),datasets:[{data:patMs.map(m=>D.patHistory[m]),borderColor:"#a472ff",backgroundColor:"rgba(164,114,255,.12)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:"#a472ff"}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>" "+fmt0(ctx.raw)}}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd",callback:v=>fmt0(v)},grid:{color:"#243349"}}}}});}}
+  // ---- Receitas x Despesas (grouped bars) ----
+  const rdOpts={responsive:true,plugins:{legend:{display:true,labels:{color:"#8ea0bd",font:{size:11},boxWidth:10}}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}}},datasets:{bar:{maxBarThickness:40}}};
+  if(el("ch-rd")){if(charts["ch-rd"])charts["ch-rd"].destroy();charts["ch-rd"]=new Chart(el("ch-rd"),{type:"bar",data:{labels,datasets:[{label:"Receitas",data:incM,backgroundColor:"#2fd27d",borderRadius:3},{label:"Despesas",data:expM,backgroundColor:"#ff5d6c",borderRadius:3}]},options:rdOpts});}
+  // ---- Categorias (barras horizontais ou card simples) ----
+  if(el("ch-cat-m"))el("ch-cat-m").textContent=mShort(today);
+  const catWrap=el("ins-cat-wrap");
+  if(catWrap){
+    if(catEntries.length===0){catWrap.innerHTML='<div class="empty">Sem despesas em '+mShort(today)+'</div>';}
+    else if(catEntries.length===1){catWrap.innerHTML=`<div style="padding:8px 0"><div style="font-size:13px;color:var(--muted)">Única categoria este mês</div><div style="font-size:22px;font-weight:800;margin:6px 0">${catEntries[0][0]}</div><div class="big" style="font-size:28px;color:var(--red)">${fmt0(catEntries[0][1])}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">100% das despesas de ${mShort(today)}</div></div>`;}
+    else{catWrap.innerHTML=catEntries.map(([cat,val])=>{const pct=totalExp?Math.round(val/totalExp*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColor(cat)};margin-right:5px"></span>${cat}</span><span style="color:var(--muted)">${fmt0(val)} <b style="color:var(--txt)">${pct}%</b></span></div><div style="background:var(--line);border-radius:4px;height:8px"><div style="background:${catColor(cat)};width:${pct}%;height:8px;border-radius:4px;transition:width .4s"></div></div></div>`}).join("");}
   }
+  // ---- Composição do patrimônio ----
+  const comp=el("ins-comp");
+  if(comp){
+    const itens=[...D.accounts.filter(a=>!a.isInvest).map(a=>({nome:a.name,val:accBRL(a),tipo:"💵"})),...D.accounts.filter(a=>a.isInvest).map(a=>({nome:a.name,val:accBRL(a),tipo:"🏦"}))].filter(i=>i.val>0);
+    const totComp=itens.reduce((s,i)=>s+i.val,0);
+    comp.innerHTML=itens.length?itens.sort((a,b)=>b.val-a.val).map(i=>{const pct=totComp?Math.round(i.val/totComp*100):0;return`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>${i.tipo} ${i.nome}</span><span style="color:var(--muted)">${fmt0(i.val)} <b style="color:var(--txt)">${pct}%</b></span></div><div style="background:var(--line);border-radius:4px;height:8px"><div style="background:var(--accent);width:${pct}%;height:8px;border-radius:4px;transition:width .4s"></div></div></div>`}).join(""):'<div class="empty">Sem contas cadastradas</div>';
+  }
+  // ---- Metas ----
+  const metasWrap=el("ins-metas-wrap");
+  if(metasWrap&&D.metas.length){metasWrap.innerHTML=`<div class="sec-title"><h2>🎯 Progresso das metas</h2></div><div class="card">`+D.metas.map(g=>{const pct=g.target?Math.min(100,Math.round(g.current/g.target*100)):0;const falta=Math.max(0,g.target-g.current);return`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>${g.name}</b><span class="note">${pct}%</span></div><div style="background:var(--line);border-radius:6px;height:10px;margin-bottom:4px"><div style="background:${pct>=100?"var(--green)":"var(--accent)"};width:${pct}%;height:10px;border-radius:6px;transition:width .4s"></div></div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>${fmt0(g.current)} de ${fmt0(g.target)}</span><span>${pct<100?"Faltam "+fmt0(falta):"✅ Concluído"}</span></div></div>`}).join("")+'</div>';}else if(metasWrap){metasWrap.innerHTML="";}
 }
 function drawChart(id,type,data,legend,grouped){
   const el=document.getElementById(id);if(!el)return;if(charts[id])charts[id].destroy();
