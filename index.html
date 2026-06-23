@@ -343,7 +343,11 @@ function recalcNubank(){
         D.bills.push({id:nid(),month:m,desc:"Fatura Nu",due:m+"-15",value:total,paid:false,type:"expense",cat:"Cartão",isNubank:true});
       }
     } else if(ex){
-      D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===m));
+      // Só apaga automaticamente faturas de meses futuros com valor zero
+      // Meses passados/atual só são removidos pelo botão "Excluir fatura"
+      if(m>todayMonth()){
+        D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===m));
+      }
     }
   });
 }
