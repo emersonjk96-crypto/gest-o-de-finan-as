@@ -669,6 +669,7 @@ function render(){
     const nuTag=b.isNubank?'<span class="nu-badge" style="font-size:9px">Nu</span>':'';
     return `<div class="row"><div class="dot" style="background:${catColor(b.cat)}"></div><div class="name"><b>${b.desc}${nuTag}</b><small>${mShort(b.month)} · ${b.cat||""}</small></div><div class="amt">${fmt(b.value)}</div>${pill}</div>`;
   }).join(""):'<div class="empty">Nada a pagar 🎉</div>';
+  savePatSnap();
   renderBills();renderAccounts();renderInvest();renderMore();if(typeof renderAuth==="function")renderAuth();
   document.getElementById("cfg-goal").value=D.goal;
   document.getElementById("cfg-reserved").value=D.reserved||0;
@@ -755,33 +756,46 @@ function renderMore(){
 }
 function cardName(id){const c=D.cards.find(x=>x.id===id);return c?c.name:""}
 
+// Salva snapshot do patrimônio do mês atual (chamado a cada render)
+function savePatSnap(){
+  const m=todayMonth();
+  const val=Math.round((totalAccounts()+D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0))*100)/100;
+  if(!D.patHistory)D.patHistory={};
+  D.patHistory[m]=val;
+}
 function renderCharts(){
   if(typeof Chart==="undefined")return;
   const today=todayMonth();
   const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=today).slice(-6);
   const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
-  // Indicadores
+  const el=n=>document.getElementById(n);
+  // Indicadores — só fazem sentido com 2+ meses
   const nonZero=expM.filter(v=>v>0);
+  const multi=nonZero.length>=2;
   const media=nonZero.length?Math.round(nonZero.reduce((a,b)=>a+b,0)/nonZero.length):0;
   const diario=Math.round(media/30);
-  const cm=months[months.length-1]||todayMonth();
+  const cm=months[months.length-1]||today;
   const byCat={};D.bills.filter(b=>b.month===cm&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
   const topCat=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
-  const bestIdx=expM.indexOf(Math.min(...nonZero));
-  const el=n=>document.getElementById(n);
-  if(el("ch-media"))el("ch-media").textContent=fmt0(media);
-  if(el("ch-diario"))el("ch-diario").textContent=fmt0(diario);
+  const bestIdx=nonZero.length?expM.indexOf(Math.min(...nonZero)):-1;
+  if(el("ch-media"))el("ch-media").textContent=multi?fmt0(media):"—";
+  if(el("ch-diario"))el("ch-diario").textContent=multi?fmt0(diario):"—";
   if(el("ch-top-cat"))el("ch-top-cat").textContent=topCat?`${topCat[0]} (${fmt0(topCat[1])})`:"—";
-  if(el("ch-best"))el("ch-best").textContent=nonZero.length&&bestIdx>=0?`${labels[bestIdx]} · ${fmt0(expM[bestIdx])}`:"—";
-  drawChart("ch-month","bar",{labels,datasets:[{label:"Despesas",data:expM,backgroundColor:"#ff5d6c"}]});
+  if(el("ch-best"))el("ch-best").textContent=(multi&&bestIdx>=0)?`${labels[bestIdx]} · ${fmt0(expM[bestIdx])}`:"—";
+  // Gráfico barras — limita largura para não ocupar tela toda com poucos meses
+  const barOpts={responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}}},datasets:{bar:{maxBarThickness:60}}};
+  if(el("ch-month")){if(charts["ch-month"])charts["ch-month"].destroy();charts["ch-month"]=new Chart(el("ch-month"),{type:"bar",data:{labels,datasets:[{label:"Despesas",data:expM,backgroundColor:"#ff5d6c",borderRadius:4}]},options:barOpts});}
   if(el("ch-cat-m"))el("ch-cat-m").textContent=mShort(cm);
   const ck=Object.keys(byCat);
-  drawChart("ch-cat","doughnut",{labels:ck,datasets:[{data:ck.map(k=>byCat[k]),backgroundColor:ck.map(catColor)}]},true);
-  drawChart("ch-rd","bar",{labels,datasets:[{label:"Receitas",data:incM,backgroundColor:"#2fd27d"},{label:"Despesas",data:expM,backgroundColor:"#ff5d6c"}]},false,true);
-  // Evolução do patrimônio (disponível + investido por mês estimado)
-  const disp=totalAccounts(),inv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
-  const patData=months.map((_,i)=>Math.round((disp+inv)*((i+1)/months.length)*100)/100);
-  drawChart("ch-pat","line",{labels,datasets:[{label:"Patrimônio",data:patData,borderColor:"#a472ff",backgroundColor:"rgba(164,114,255,.15)",fill:true,tension:.3}]},false,false);
+  if(el("ch-cat")){if(charts["ch-cat"])charts["ch-cat"].destroy();charts["ch-cat"]=new Chart(el("ch-cat"),{type:"doughnut",data:{labels:ck,datasets:[{data:ck.map(k=>byCat[k]),backgroundColor:ck.map(catColor)}]},options:{responsive:true,plugins:{legend:{display:true,position:"bottom",labels:{color:"#8ea0bd",font:{size:11},boxWidth:12}}}}});}
+  if(el("ch-rd")){if(charts["ch-rd"])charts["ch-rd"].destroy();charts["ch-rd"]=new Chart(el("ch-rd"),{type:"bar",data:{labels,datasets:[{label:"Receitas",data:incM,backgroundColor:"#2fd27d",borderRadius:4},{label:"Despesas",data:expM,backgroundColor:"#ff5d6c",borderRadius:4}]},options:{...barOpts,plugins:{legend:{display:true,labels:{color:"#8ea0bd",font:{size:11}}}}}});}
+  // Evolução do patrimônio — snapshot real por mês
+  if(!D.patHistory)D.patHistory={};
+  const patMonths=Object.keys(D.patHistory).sort().slice(-12);
+  if(el("ch-pat")){
+    if(patMonths.length<2){el("ch-pat").parentElement.innerHTML='<div class="empty" style="padding:20px 0">Os dados de evolução aparecem após o segundo mês registrado.</div>';}
+    else{if(charts["ch-pat"])charts["ch-pat"].destroy();charts["ch-pat"]=new Chart(el("ch-pat"),{type:"line",data:{labels:patMonths.map(mShort),datasets:[{label:"Patrimônio",data:patMonths.map(m=>D.patHistory[m]),borderColor:"#a472ff",backgroundColor:"rgba(164,114,255,.12)",fill:true,tension:.3,pointRadius:4,pointBackgroundColor:"#a472ff"}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#8ea0bd"},grid:{color:"#243349"}},y:{ticks:{color:"#8ea0bd",callback:v=>fmt0(v)},grid:{color:"#243349"}}}}});}
+  }
 }
 function drawChart(id,type,data,legend,grouped){
   const el=document.getElementById(id);if(!el)return;if(charts[id])charts[id].destroy();
