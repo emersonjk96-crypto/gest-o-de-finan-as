@@ -885,7 +885,7 @@ function openTx(id,defType){
     <div style="display:flex;align-items:center;gap:10px;margin:6px 0 4px"><div class="chk ${b.paid?"on":""}" id="f-paid">${b.paid?"✓":""}</div><span class="note">Já ${inc?"recebido":"pago"}</span><div style="flex:1"></div><div class="chk ${b.recurring?"on":""}" id="f-rec">${b.recurring?"✓":""}</div><span class="note">Recorrente</span></div>
     <div id="f-until-box" style="display:none;margin-bottom:10px"><div class="fld"><label>Repetir até (opcional)</label><input id="f-until" type="month" value=""></div></div>
     <div class="flex"><button class="btn" onclick="saveTx(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>
-    ${id?`<div style="text-align:center;margin-top:14px">${b.group?`<button class="del" onclick="delGroupFrom('${b.group}','${b.month}')">Excluir esta e próximas</button> · <button class="del" onclick="delGroup('${b.group}')">Excluir todas</button> · `:""}${b.isNubank?"":(`<button class="del" onclick="delTx(${id})">Excluir</button>`)}</div>`:""}`);
+    ${id?`<div style="text-align:center;margin-top:14px">${b.group?`<button class="del" onclick="openDelParcelas('${b.group}','${b.month}')">Excluir parcelas</button> · `:""}${b.isNubank?"":(`<button class="del" onclick="delTx(${id})">Excluir</button>`)}</div>`:""}`);
   const fp=document.getElementById("f-paid");fp.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":""};
   const fr=document.getElementById("f-rec");fr.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":"";document.getElementById("f-until-box").style.display=this.classList.contains("on")?"block":"none"};
   const fu=document.getElementById("f-until");if(fu&&b.recurrUntil)fu.value=b.recurrUntil;document.getElementById("f-until-box").style.display=b.recurring?"block":"none";
@@ -914,7 +914,53 @@ function saveTx(id){
 }
 function delTx(id){D.bills=D.bills.filter(x=>x.id!==id);closeModal();save()}
 function delGroup(g){if(confirm("Excluir todas as parcelas dessa compra?")){D.bills=D.bills.filter(x=>x.group!==g);closeModal();save()}}
-function delGroupFrom(g,fromMonth){if(confirm("Excluir esta parcela e todas as próximas?")){D.bills=D.bills.filter(x=>!(x.group===g&&x.month>=fromMonth));closeModal();save()}}
+
+let _dpGroup="",_dpFromMonth="",_dpDir="proximas";
+function openDelParcelas(g,fromMonth){
+  _dpGroup=g;_dpFromMonth=fromMonth;_dpDir="proximas";
+  const all=D.bills.filter(b=>b.group===g).sort((a,b)=>a.month.localeCompare(b.month));
+  const total=all.length;
+  modal(`<h3>Excluir parcelas</h3>
+    <div class="seg" style="margin-bottom:14px">
+      <div id="dp-prox" class="on" onclick="_dpDir='proximas';document.getElementById('dp-prox').className='on';document.getElementById('dp-ult').className='';document.getElementById('dp-lbl').textContent='Quantas a partir desta (inclusive)?';updateDpPreview()">Proximas</div>
+      <div id="dp-ult" onclick="_dpDir='ultimas';document.getElementById('dp-ult').className='on';document.getElementById('dp-prox').className='';document.getElementById('dp-lbl').textContent='Quantas do final para tras?';updateDpPreview()">Ultimas</div>
+    </div>
+    <div class="fld"><label id="dp-lbl">Quantas a partir desta (inclusive)?</label>
+      <input id="dp-n" type="number" inputmode="numeric" min="1" max="${total}" value="1" oninput="updateDpPreview()">
+    </div>
+    <div id="dp-preview" style="margin:10px 0;padding:10px;background:var(--card2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+    <div class="flex"><button class="btn danger" onclick="confirmDelParcelas()">Excluir</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);
+  updateDpPreview();
+}
+function updateDpPreview(){
+  const n=Math.max(1,parseInt(document.getElementById("dp-n").value)||1);
+  const all=D.bills.filter(b=>b.group===_dpGroup).sort((a,b)=>a.month.localeCompare(b.month));
+  let toDelete;
+  if(_dpDir==="proximas"){
+    const idx=all.findIndex(b=>b.month>=_dpFromMonth);
+    toDelete=all.slice(idx<0?0:idx,idx<0?n:idx+n);
+  }else{
+    toDelete=all.slice(-n);
+  }
+  const prev=document.getElementById("dp-preview");
+  if(!prev)return;
+  if(!toDelete.length){prev.innerHTML="Nenhuma parcela selecionada.";return;}
+  const total=toDelete.reduce((s,b)=>s+ +b.value,0);
+  prev.innerHTML=`<b style="color:var(--red)">Serao excluidas ${toDelete.length} parcela(s):</b><br>`+toDelete.map(b=>`${mShort(b.month)} - ${fmt(b.value)}${b.paid?" (paga)":""}`).join("<br>")+`<br><b>Total: ${fmt(total)}</b>`;
+}
+function confirmDelParcelas(){
+  const n=Math.max(1,parseInt(document.getElementById("dp-n").value)||1);
+  const all=D.bills.filter(b=>b.group===_dpGroup).sort((a,b)=>a.month.localeCompare(b.month));
+  let ids;
+  if(_dpDir==="proximas"){
+    const idx=all.findIndex(b=>b.month>=_dpFromMonth);
+    ids=all.slice(idx<0?0:idx,idx<0?n:idx+n).map(b=>b.id);
+  }else{
+    ids=all.slice(-n).map(b=>b.id);
+  }
+  D.bills=D.bills.filter(b=>!ids.includes(b.id));
+  closeModal();save();
+}
 
 function openAcc(id){
   const a=id?D.accounts.find(x=>x.id===id):{name:"",value:"",moeda:"BRL",isInvest:false};
