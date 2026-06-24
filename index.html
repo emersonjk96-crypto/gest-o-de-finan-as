@@ -169,6 +169,10 @@ canvas{max-width:100%}
   </div>
   <div id="i-alloc"></div>
   <div class="card">
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button id="inv-btn-classe" class="btn sm" style="flex:1" onclick="setInvView('classe')">📊 Por classe</button>
+      <button id="inv-btn-inst" class="btn sm ghost" style="flex:1" onclick="setInvView('inst')">🏦 Por instituição</button>
+    </div>
     <div style="display:flex;gap:8px">
       <button class="btn sm" style="flex:1" onclick="updatePrices()">🔄 Atualizar preços</button>
       <button class="btn sm ghost" style="flex:1" onclick="openInv()">+ Ativo</button>
@@ -799,73 +803,114 @@ function renderAccounts(){
 
 function invRow(it){const b=brlOf(it);const r=b.at-b.ap;const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
 return `<div class="row"><div class="name" onclick="openInv(${it.id})"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small></div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;}
+let _invView="classe";
+function setInvView(v){
+  _invView=v;
+  document.getElementById("inv-btn-classe").className="btn sm"+(v==="classe"?"":" ghost");
+  document.getElementById("inv-btn-inst").className="btn sm"+(v==="inst"?"":" ghost");
+  renderInvest();
+}
 function renderInvest(){
-  // Totais de D.invest
-  let ap=0,at=0;D.invest.forEach(it=>{const b=brlOf(it);ap+=b.ap;at+=b.at});
-  // Contas isInvest → Renda Fixa
-  const rfAccs=D.accounts.filter(a=>a.isInvest);
+  // Contas isRF (Renda Fixa explícita: Caixinha, CDB, Tesouro)
+  const rfAccs=D.accounts.filter(a=>a.isRF);
   const rfVal=rfAccs.reduce((s,a)=>s+accBRL(a),0);
-  const totGeral=at+rfVal;
+  // D.invest totais
+  let ap=0,at=0;D.invest.forEach(it=>{const b=brlOf(it);ap+=b.ap;at+=b.at});
+  const totGeral=rfVal+at;
   document.getElementById("i-total").textContent=fmt0(totGeral);
   const rend=at-ap,pct=ap?(rend/ap*100):0;
-  document.getElementById("i-rend").innerHTML=`Ativos: ${fmt0(at)} · Resultado <span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span>`;
-  // Grupos por tipo
-  const GRUPOS=[
-    {tipo:"RF",   icon:"💰",label:"Renda Fixa",   extra:rfVal,cor:"#2fd27d"},
-    {tipo:"FII",  icon:"🏢",label:"FIIs",          extra:0,    cor:"#a472ff"},
-    {tipo:"ETF",  icon:"📈",label:"ETFs",           extra:0,    cor:"#4c9eff"},
-    {tipo:"REIT", icon:"🏬",label:"REITs",          extra:0,    cor:"#f4a942"},
-    {tipo:"Ação", icon:"📊",label:"Ações",          extra:0,    cor:"#2dd4bf"},
-    {tipo:"Cripto",icon:"₿",label:"Criptomoedas",  extra:0,    cor:"#f7931a"},
-  ].map(g=>{
-    const items=D.invest.filter(i=>i.tipo===g.tipo);
-    let gat=g.extra,gap=g.extra;
+  document.getElementById("i-rend").innerHTML=`RF: ${fmt0(rfVal)} · Ativos: ${fmt0(at)} · Resultado <span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span>`;
+  // Definição de grupos por classe
+  const DEF_GRUPOS=[
+    {tipo:"RF",    icon:"💰",label:"Renda Fixa",  cor:"#2fd27d"},
+    {tipo:"FII",   icon:"🏢",label:"FIIs Brasil", cor:"#a472ff"},
+    {tipo:"ETF",   icon:"📈",label:"ETFs",         cor:"#4c9eff"},
+    {tipo:"REIT",  icon:"🏬",label:"REITs",        cor:"#f4a942"},
+    {tipo:"Ação",  icon:"📊",label:"Ações",        cor:"#2dd4bf"},
+    {tipo:"Cripto",icon:"₿", label:"Criptomoedas",cor:"#f7931a"},
+  ];
+  const GRUPOS=DEF_GRUPOS.map(g=>{
+    const items=g.tipo==="RF"
+      ? D.invest.filter(i=>i.tipo==="RF")
+      : D.invest.filter(i=>i.tipo===g.tipo);
+    const extraVal=g.tipo==="RF"?rfVal:0;
+    let gat=extraVal,gap=extraVal;
     items.forEach(it=>{const b=brlOf(it);gat+=b.at;gap+=b.ap;});
-    return {...g,items,total:gat,totalAp:gap};
+    return {...g,items,extra:extraVal,total:gat,totalAp:gap};
   }).filter(g=>g.total>0||g.items.length>0);
-  // Card alocação
+  // Card de alocação (sempre visível)
   const allocEl=document.getElementById("i-alloc");
   if(allocEl){
-    if(!GRUPOS.length){allocEl.innerHTML="";} else {
-    allocEl.innerHTML=`<div class="card" style="margin-bottom:0">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">📊 Alocação</div>
-      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:14px">
-        ${GRUPOS.map(g=>`<div style="flex:${g.total||0.001};background:${g.cor}"></div>`).join("")}
-      </div>
-      ${GRUPOS.map(g=>{
-        const p=totGeral?Math.round(g.total/totGeral*100):0;
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)">
-          <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:2px;flex-shrink:0;background:${g.cor}"></div><span style="font-size:13px">${g.icon} ${g.label}</span></div>
-          <div style="text-align:right"><b style="font-size:13px">${fmt0(g.total)}</b> <span style="font-size:12px;color:var(--muted)">${p}%</span></div>
-        </div>`;
-      }).join("")}
-    </div>`;
+    if(!GRUPOS.length){allocEl.innerHTML="";}
+    else{
+      allocEl.innerHTML=`<div class="card" style="margin-bottom:0">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">📊 Alocação</div>
+        <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:14px">
+          ${GRUPOS.map(g=>`<div style="flex:${g.total||0.001};background:${g.cor}"></div>`).join("")}
+        </div>
+        ${GRUPOS.map(g=>{const p=totGeral?Math.round(g.total/totGeral*100):0;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)">
+            <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:2px;flex-shrink:0;background:${g.cor}"></div><span style="font-size:13px">${g.icon} ${g.label}</span></div>
+            <div style="text-align:right"><b style="font-size:13px">${fmt0(g.total)}</b> <span style="font-size:12px;color:var(--muted)">${p}%</span></div>
+          </div>`;}).join("")}
+      </div>`;
     }
   }
-  // Lista por tipo
   const CRIPTO_MAIN=new Set(["BTC","ETH","BITCOIN","ETHEREUM"]);
-  function grpSection(g){
-    if(!g.items.length&&!g.extra)return"";
-    const r2=g.items.reduce((s,it)=>{const b=brlOf(it);return s+(b.at-b.ap);},0);
-    const rSign=r2>=0?"pos":"neg";
-    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${g.icon} ${g.label}</h2><span class="note">${fmt0(g.total)}${g.items.length?` <span class="${rSign}">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}</span></div>`;
-    // Renda Fixa: contas isInvest
-    if(g.tipo==="RF"&&rfAccs.length){
-      html+=`<div class="card">${rfAccs.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>${a.moeda||"BRL"}</small></div><div style="text-align:right"><div class="amt">${fmt(accBRL(a))}</div></div></div>`).join("")}${g.items.map(invRow).join("")}</div>`;
+  // ── VISÃO POR CLASSE ──────────────────────────────────────────────────────
+  if(_invView==="classe"){
+    function grpClasse(g){
+      if(!g.items.length&&!g.extra)return"";
+      const r2=g.items.reduce((s,it)=>{const b=brlOf(it);return s+(b.at-b.ap);},0);
+      let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${g.icon} ${g.label}</h2><span class="note">${fmt0(g.total)}${g.items.length?` <span class="${r2>=0?"pos":"neg"}">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}</span></div>`;
+      // RF: mostra contas isRF + items tipo RF
+      if(g.tipo==="RF"){
+        const rows=rfAccs.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>${a.banco||a.moeda||"BRL"}</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("")+g.items.map(invRow).join("");
+        return html+(rows?`<div class="card">${rows}</div>`:"");
+      }
+      // Cripto: BTC/ETH separados de altcoins
+      if(g.tipo==="Cripto"&&g.items.length){
+        const main=g.items.filter(i=>CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
+        const alt=g.items.filter(i=>!CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
+        if(main.length)html+=`<div class="card" style="margin-bottom:6px">${main.map(invRow).join("")}</div>`;
+        if(alt.length)html+=`<div style="font-size:11px;color:var(--muted);margin:6px 4px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Altcoins</div><div class="card">${alt.map(invRow).join("")}</div>`;
+        return html;
+      }
+      if(g.items.length)html+=`<div class="card">${g.items.map(invRow).join("")}</div>`;
       return html;
     }
-    // Cripto: principais vs altcoins
-    if(g.tipo==="Cripto"&&g.items.length){
-      const main=g.items.filter(i=>CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
-      const alt=g.items.filter(i=>!CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
-      if(main.length)html+=`<div class="card" style="margin-bottom:6px">${main.map(invRow).join("")}</div>`;
-      if(alt.length){html+=`<div style="font-size:11px;color:var(--muted);margin:6px 4px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Altcoins</div><div class="card">${alt.map(invRow).join("")}</div>`;}
-      return html;
-    }
-    if(g.items.length)html+=`<div class="card">${g.items.map(invRow).join("")}</div>`;
-    return html;
+    document.getElementById("i-list").innerHTML=(D.invest.length||rfVal)?GRUPOS.map(grpClasse).join(""):'<div class="card"><div class="empty">Nenhum ativo. Adicione pelo botão + Ativo.</div></div>';
+    return;
   }
-  document.getElementById("i-list").innerHTML=(D.invest.length||rfVal)?GRUPOS.map(grpSection).join(""):'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
+  // ── VISÃO POR INSTITUIÇÃO ─────────────────────────────────────────────────
+  // Agrupar D.invest por corretora
+  const corrMap={};
+  D.invest.forEach(it=>{
+    const k=it.corretora||"Outros";
+    if(!corrMap[k])corrMap[k]={items:[],total:0,ap:0};
+    const b=brlOf(it);corrMap[k].items.push(it);corrMap[k].total+=b.at;corrMap[k].ap+=b.ap;
+  });
+  // Adicionar contas RF a seus bancos
+  rfAccs.forEach(a=>{
+    const k=a.banco||a.name;
+    if(!corrMap[k])corrMap[k]={items:[],total:0,ap:0,rfRows:[]};
+    if(!corrMap[k].rfRows)corrMap[k].rfRows=[];
+    corrMap[k].rfRows.push(a);
+    corrMap[k].total+=accBRL(a);
+    corrMap[k].ap+=accBRL(a);
+  });
+  const instKeys=Object.keys(corrMap).sort((a,b)=>corrMap[b].total-corrMap[a].total);
+  const INST_ICONS={"Nubank":"🟣","Nomad":"🌎","Binance":"🟡","XP":"🔵","BTG":"🔷","Rico":"🟠","Clear":"⚪","Outros":"🏦"};
+  let instHtml=instKeys.map(k=>{
+    const g=corrMap[k];
+    const r=g.total-g.ap;
+    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${INST_ICONS[k]||"🏦"} ${k}</h2><span class="note">${fmt0(g.total)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span></div><div class="card">`;
+    if(g.rfRows)html+=g.rfRows.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>💰 Renda Fixa</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("");
+    html+=g.items.map(invRow).join("");
+    html+="</div>";
+    return html;
+  }).join("");
+  document.getElementById("i-list").innerHTML=instHtml||'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
 }
 function renderMore(){
   document.getElementById("m-cards").innerHTML=D.cards.length?D.cards.map(c=>{
@@ -1105,10 +1150,11 @@ function confirmDelParcelas(){
 }
 
 function openAcc(id){
-  const a=id?D.accounts.find(x=>x.id===id):{name:"",value:"",moeda:"BRL",isInvest:false};
+  const a=id?D.accounts.find(x=>x.id===id):{name:"",value:"",moeda:"BRL",isInvest:false,isRF:false,banco:""};
   const isUSD=a.moeda==="USD";
   _accUSD=isUSD;
   _accInvest=!!a.isInvest;
+  _accRF=!!a.isRF;
   modal(`<h3>${id?"Editar saldo":"Nova conta"}</h3>
     <div class="fld"><label>Nome</label><input id="f-name" value="${a.name}"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1119,6 +1165,11 @@ function openAcc(id){
       <div><span style="font-size:13px">Conta de investimento?</span><div class="note" style="font-size:11px">Separada do saldo disponível</div></div>
       <div class="toggle ${a.isInvest?"on":""}" id="acc-invest-toggle" onclick="toggleAccInvest()"><b></b></div>
     </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><span style="font-size:13px">💰 É Renda Fixa?</span><div class="note" style="font-size:11px">Caixinha, CDB, Tesouro, Poupança</div></div>
+      <div class="toggle ${a.isRF?"on":""}" id="acc-rf-toggle" onclick="toggleAccRF()"><b></b></div>
+    </div>
+    <div class="fld"><label>Banco / Instituição</label><input id="f-banco" value="${a.banco||""}" placeholder="ex: Nubank, Itaú, XP"></div>
     <div class="fld">
       <label id="f-aval-lbl">Saldo atual (${isUSD?"US$":"R$"})</label>
       <input id="f-aval" type="number" inputmode="decimal" value="${a.value}" oninput="updateAccPreview()">
@@ -1131,6 +1182,7 @@ function openAcc(id){
 }
 let _accUSD=false;
 let _accInvest=false;
+let _accRF=false;
 function openAccInit(isUSD){_accUSD=isUSD;}
 function toggleAccUSD(){
   _accUSD=!_accUSD;
@@ -1142,6 +1194,10 @@ function toggleAccUSD(){
 function toggleAccInvest(){
   _accInvest=!_accInvest;
   document.getElementById("acc-invest-toggle").className="toggle"+(_accInvest?" on":"");
+}
+function toggleAccRF(){
+  _accRF=!_accRF;
+  document.getElementById("acc-rf-toggle").className="toggle"+(_accRF?" on":"");
 }
 function updateAccPreview(){
   const el=document.getElementById("acc-preview");if(!el)return;
@@ -1158,17 +1214,20 @@ function saveAcc(id){
   const tog=document.getElementById("acc-usd-toggle");
   const moeda=tog&&tog.classList.contains("on")?"USD":"BRL";
   const isInvest=_accInvest;
+  const isRF=_accRF;
+  const banco=(document.getElementById("f-banco")||{}).value||"";
   if(!name)return;
-  if(id){const a=D.accounts.find(x=>x.id===id);a.name=name;a.value=value;a.moeda=moeda;a.isInvest=isInvest;}
-  else D.accounts.push({id:nid(),name,value,moeda,isInvest});
+  if(id){const a=D.accounts.find(x=>x.id===id);a.name=name;a.value=value;a.moeda=moeda;a.isInvest=isInvest;a.isRF=isRF;a.banco=banco;}
+  else D.accounts.push({id:nid(),name,value,moeda,isInvest,isRF,banco});
   closeModal();save();
 }
 function delAcc(id){D.accounts=D.accounts.filter(x=>x.id!==id);closeModal();save()}
 
-function openInv(id){const it=id?D.invest.find(x=>x.id===id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL"};
-  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCR11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd cotas</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="note">Valor atual = cotação × nº de cotas (atualiza sozinho no botão Atualizar preços).</div><div class="flex"><button class="btn" onclick="saveInv(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv(${id})">Excluir</button></div>`:""}`);}
+function openInv(id){const it=id?D.invest.find(x=>x.id===id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL",corretora:""};
+  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCR11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd / Quantidade</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="fld"><label>Instituição / Corretora</label><select id="f-cor"><option value="" ${!it.corretora?"selected":""}>— selecione —</option><option ${it.corretora=="Nubank"?"selected":""}>Nubank</option><option ${it.corretora=="Nomad"?"selected":""}>Nomad</option><option ${it.corretora=="Binance"?"selected":""}>Binance</option><option ${it.corretora=="XP"?"selected":""}>XP</option><option ${it.corretora=="BTG"?"selected":""}>BTG</option><option ${it.corretora=="Rico"?"selected":""}>Rico</option><option ${it.corretora=="Clear"?"selected":""}>Clear</option><option ${it.corretora=="Outros"?"selected":""}>Outros</option></select></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="note">Valor atual = cotação × nº de cotas (atualiza sozinho no botão Atualizar preços).</div><div class="flex"><button class="btn" onclick="saveInv(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv(${id})">Excluir</button></div>`:""}`);}
 function saveInv(id){const qt=parseFloat(document.getElementById("f-qt").value)||0;const price=parseFloat(document.getElementById("f-cur").value)||0;
-const o={ativo:document.getElementById("f-at").value.trim(),ticker:document.getElementById("f-tk").value.trim(),tipo:document.getElementById("f-tp").value,qtd:qt,moeda:document.getElementById("f-mo").value,aplicado:parseFloat(document.getElementById("f-ap").value)||0,price:price,atual:Math.round(price*qt*100)/100};
+const corEl=document.getElementById("f-cor");const corretora=corEl?corEl.value:"";
+const o={ativo:document.getElementById("f-at").value.trim(),ticker:document.getElementById("f-tk").value.trim(),tipo:document.getElementById("f-tp").value,qtd:qt,moeda:document.getElementById("f-mo").value,aplicado:parseFloat(document.getElementById("f-ap").value)||0,price:price,atual:Math.round(price*qt*100)/100,corretora};
 if(!o.ativo)return;if(!o.ticker)o.ticker=o.ativo.split(" ")[0];
 if(id){Object.assign(D.invest.find(x=>x.id===id),o)}else D.invest.push({id:nid(),...o});closeModal();save();}
 function delInv(id){D.invest=D.invest.filter(x=>x.id!==id);closeModal();save()}
