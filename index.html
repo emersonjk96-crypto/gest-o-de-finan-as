@@ -163,10 +163,11 @@ canvas{max-width:100%}
 <!-- INVESTIR -->
 <div class="page" id="p-inv">
   <div class="card hero">
-    <div class="lbl">Patrimônio investido (estimado)</div>
+    <div class="lbl">Patrimônio investido</div>
     <div class="big" id="i-total">R$ 0</div>
     <div class="note" id="i-rend"></div>
   </div>
+  <div id="i-alloc"></div>
   <div class="card">
     <div style="display:flex;gap:8px">
       <button class="btn sm" style="flex:1" onclick="updatePrices()">🔄 Atualizar preços</button>
@@ -799,14 +800,72 @@ function renderAccounts(){
 function invRow(it){const b=brlOf(it);const r=b.at-b.ap;const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
 return `<div class="row"><div class="name" onclick="openInv(${it.id})"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small></div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;}
 function renderInvest(){
-let ap=0,at=0;D.invest.forEach(it=>{const b=brlOf(it);ap+=b.ap;at+=b.at});
-const rend=at-ap,pct=ap?(rend/ap*100):0;
-document.getElementById("i-total").textContent=fmt0(at);
-document.getElementById("i-rend").innerHTML=`Aplicado ${fmt0(ap)} · Resultado <span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span>`;
-const nac=D.invest.filter(i=>i.moeda!=="USD"),intl=D.invest.filter(i=>i.moeda==="USD");
-function grp(title,arr){if(!arr.length)return"";let a=0,t=0;arr.forEach(it=>{const b=brlOf(it);a+=b.ap;t+=b.at});const r=t-a;
-return `<div class="sec-title" style="margin:10px 4px 2px"><h2 style="font-size:14px">${title}</h2><span class="note">${fmt0(t)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span></div><div class="card">${arr.map(invRow).join("")}</div>`;}
-document.getElementById("i-list").innerHTML=D.invest.length?(grp("Nacional",nac)+grp("Internacional",intl)):'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
+  // Totais de D.invest
+  let ap=0,at=0;D.invest.forEach(it=>{const b=brlOf(it);ap+=b.ap;at+=b.at});
+  // Contas isInvest → Renda Fixa
+  const rfAccs=D.accounts.filter(a=>a.isInvest);
+  const rfVal=rfAccs.reduce((s,a)=>s+accBRL(a),0);
+  const totGeral=at+rfVal;
+  document.getElementById("i-total").textContent=fmt0(totGeral);
+  const rend=at-ap,pct=ap?(rend/ap*100):0;
+  document.getElementById("i-rend").innerHTML=`Ativos: ${fmt0(at)} · Resultado <span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span>`;
+  // Grupos por tipo
+  const GRUPOS=[
+    {tipo:"RF",   icon:"💰",label:"Renda Fixa",   extra:rfVal,cor:"#2fd27d"},
+    {tipo:"FII",  icon:"🏢",label:"FIIs",          extra:0,    cor:"#a472ff"},
+    {tipo:"ETF",  icon:"📈",label:"ETFs",           extra:0,    cor:"#4c9eff"},
+    {tipo:"REIT", icon:"🏬",label:"REITs",          extra:0,    cor:"#f4a942"},
+    {tipo:"Ação", icon:"📊",label:"Ações",          extra:0,    cor:"#2dd4bf"},
+    {tipo:"Cripto",icon:"₿",label:"Criptomoedas",  extra:0,    cor:"#f7931a"},
+  ].map(g=>{
+    const items=D.invest.filter(i=>i.tipo===g.tipo);
+    let gat=g.extra,gap=g.extra;
+    items.forEach(it=>{const b=brlOf(it);gat+=b.at;gap+=b.ap;});
+    return {...g,items,total:gat,totalAp:gap};
+  }).filter(g=>g.total>0||g.items.length>0);
+  // Card alocação
+  const allocEl=document.getElementById("i-alloc");
+  if(allocEl){
+    if(!GRUPOS.length){allocEl.innerHTML="";} else {
+    allocEl.innerHTML=`<div class="card" style="margin-bottom:0">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">📊 Alocação</div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:14px">
+        ${GRUPOS.map(g=>`<div style="flex:${g.total||0.001};background:${g.cor}"></div>`).join("")}
+      </div>
+      ${GRUPOS.map(g=>{
+        const p=totGeral?Math.round(g.total/totGeral*100):0;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:2px;flex-shrink:0;background:${g.cor}"></div><span style="font-size:13px">${g.icon} ${g.label}</span></div>
+          <div style="text-align:right"><b style="font-size:13px">${fmt0(g.total)}</b> <span style="font-size:12px;color:var(--muted)">${p}%</span></div>
+        </div>`;
+      }).join("")}
+    </div>`;
+    }
+  }
+  // Lista por tipo
+  const CRIPTO_MAIN=new Set(["BTC","ETH","BITCOIN","ETHEREUM"]);
+  function grpSection(g){
+    if(!g.items.length&&!g.extra)return"";
+    const r2=g.items.reduce((s,it)=>{const b=brlOf(it);return s+(b.at-b.ap);},0);
+    const rSign=r2>=0?"pos":"neg";
+    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${g.icon} ${g.label}</h2><span class="note">${fmt0(g.total)}${g.items.length?` <span class="${rSign}">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}</span></div>`;
+    // Renda Fixa: contas isInvest
+    if(g.tipo==="RF"&&rfAccs.length){
+      html+=`<div class="card">${rfAccs.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>${a.moeda||"BRL"}</small></div><div style="text-align:right"><div class="amt">${fmt(accBRL(a))}</div></div></div>`).join("")}${g.items.map(invRow).join("")}</div>`;
+      return html;
+    }
+    // Cripto: principais vs altcoins
+    if(g.tipo==="Cripto"&&g.items.length){
+      const main=g.items.filter(i=>CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
+      const alt=g.items.filter(i=>!CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
+      if(main.length)html+=`<div class="card" style="margin-bottom:6px">${main.map(invRow).join("")}</div>`;
+      if(alt.length){html+=`<div style="font-size:11px;color:var(--muted);margin:6px 4px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Altcoins</div><div class="card">${alt.map(invRow).join("")}</div>`;}
+      return html;
+    }
+    if(g.items.length)html+=`<div class="card">${g.items.map(invRow).join("")}</div>`;
+    return html;
+  }
+  document.getElementById("i-list").innerHTML=(D.invest.length||rfVal)?GRUPOS.map(grpSection).join(""):'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
 }
 function renderMore(){
   document.getElementById("m-cards").innerHTML=D.cards.length?D.cards.map(c=>{
@@ -1107,7 +1166,7 @@ function saveAcc(id){
 function delAcc(id){D.accounts=D.accounts.filter(x=>x.id!==id);closeModal();save()}
 
 function openInv(id){const it=id?D.invest.find(x=>x.id===id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL"};
-  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCR11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd cotas</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="note">Valor atual = cotação × nº de cotas (atualiza sozinho no botão Atualizar preços).</div><div class="flex"><button class="btn" onclick="saveInv(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv(${id})">Excluir</button></div>`:""}`);}
+  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCR11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd cotas</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="note">Valor atual = cotação × nº de cotas (atualiza sozinho no botão Atualizar preços).</div><div class="flex"><button class="btn" onclick="saveInv(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv(${id})">Excluir</button></div>`:""}`);}
 function saveInv(id){const qt=parseFloat(document.getElementById("f-qt").value)||0;const price=parseFloat(document.getElementById("f-cur").value)||0;
 const o={ativo:document.getElementById("f-at").value.trim(),ticker:document.getElementById("f-tk").value.trim(),tipo:document.getElementById("f-tp").value,qtd:qt,moeda:document.getElementById("f-mo").value,aplicado:parseFloat(document.getElementById("f-ap").value)||0,price:price,atual:Math.round(price*qt*100)/100};
 if(!o.ativo)return;if(!o.ticker)o.ticker=o.ativo.split(" ")[0];
