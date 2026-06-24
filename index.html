@@ -471,7 +471,7 @@ function openNuPurchase(id,fromMonth){
       <button class="btn" onclick="saveNuPurchase(${id||0},'${backMonth}')">Salvar</button>
       <button class="btn ghost" onclick="openNubank('${backMonth}')">Cancelar</button>
     </div>
-    ${id?`<div style="text-align:center;margin-top:16px"><button class="del" onclick="delNuPurchase(${id},'${backMonth}')">🗑 Excluir esta compra e todas as parcelas</button></div>`:''}
+    ${id?`<div style="text-align:center;margin-top:16px">${p.installments>1?`<button class="del" onclick="openDelNuParcelas(${id},'${backMonth}')">Excluir parcelas</button> · `:""}  <button class="del" onclick="delNuPurchase(${id},'${backMonth}')">Excluir compra inteira</button></div>`:''}
   `);
   updateNuPreview();
 }
@@ -516,6 +516,55 @@ function saveNuPurchase(id,fromMonth){
   setTimeout(()=>openNubank(startMonth),150);
 }
 
+let _dnpId=0,_dnpFromMonth="",_dnpDir="proximas";
+function openDelNuParcelas(id,fromMonth){
+  const p=D.nuPurchases.find(x=>x.id===id);if(!p)return;
+  _dnpId=id;_dnpFromMonth=fromMonth;_dnpDir="proximas";
+  const total=p.installments;
+  const fromIdx=Math.max(0,monthDiff(p.startMonth,fromMonth));
+  modal(`<h3>Excluir parcelas Nu</h3>
+    <div class="seg" style="margin-bottom:14px">
+      <div id="dnp-prox" class="on" onclick="_dnpDir='proximas';document.getElementById('dnp-prox').className='on';document.getElementById('dnp-ult').className='';document.getElementById('dnp-lbl').textContent='Quantas a partir desta (inclusive)?';updateDnpPreview()">Proximas</div>
+      <div id="dnp-ult" onclick="_dnpDir='ultimas';document.getElementById('dnp-ult').className='on';document.getElementById('dnp-prox').className='';document.getElementById('dnp-lbl').textContent='Quantas do final para tras?';updateDnpPreview()">Ultimas</div>
+    </div>
+    <div class="fld"><label id="dnp-lbl">Quantas a partir desta (inclusive)?</label>
+      <input id="dnp-n" type="number" inputmode="numeric" min="1" max="${total}" value="1" oninput="updateDnpPreview()">
+    </div>
+    <div id="dnp-preview" style="margin:10px 0;padding:10px;background:var(--card2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+    <div class="flex"><button class="btn danger" onclick="confirmDelNuParcelas()">Excluir</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);
+  updateDnpPreview();
+}
+function updateDnpPreview(){
+  const p=D.nuPurchases.find(x=>x.id===_dnpId);if(!p)return;
+  const n=Math.max(1,parseInt(document.getElementById("dnp-n").value)||1);
+  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dnpFromMonth));
+  const inst=Math.round(p.value/p.installments*100)/100;
+  let months=[];
+  if(_dnpDir==="proximas"){
+    for(let i=fromIdx;i<Math.min(p.installments,fromIdx+n);i++) months.push(addM(p.startMonth,i));
+  }else{
+    for(let i=Math.max(0,p.installments-n);i<p.installments;i++) months.push(addM(p.startMonth,i));
+  }
+  const prev=document.getElementById("dnp-preview");if(!prev)return;
+  if(!months.length){prev.innerHTML="Nenhuma parcela.";return;}
+  prev.innerHTML=`<b style="color:var(--red)">Serao excluidas ${months.length} parcela(s):</b><br>`+months.map(m=>`${mShort(m)} - ${fmt(inst)}`).join("<br>")+`<br><b>Total: ${fmt(inst*months.length)}</b>`;
+}
+function confirmDelNuParcelas(){
+  const p=D.nuPurchases.find(x=>x.id===_dnpId);if(!p)return;
+  const n=Math.max(1,parseInt(document.getElementById("dnp-n").value)||1);
+  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dnpFromMonth));
+  if(_dnpDir==="proximas"){
+    // Remove parcelas do fromIdx em diante por N
+    const keep=p.installments-Math.min(n,p.installments-fromIdx);
+    p.installments=Math.max(fromIdx,keep);
+  }else{
+    // Remove últimas N
+    p.installments=Math.max(1,p.installments-n);
+  }
+  recalcNubank();
+  closeModal();save();
+  setTimeout(()=>openNubank(_dnpFromMonth),150);
+}
 function delNuPurchase(id,fromMonth){
   if(!confirm("Excluir esta compra e todas as parcelas futuras?"))return;
   D.nuPurchases=D.nuPurchases.filter(x=>x.id!==id);
@@ -959,6 +1008,12 @@ function confirmDelParcelas(){
     ids=all.slice(-n).map(b=>b.id);
   }
   D.bills=D.bills.filter(b=>!ids.includes(b.id));
+  // Renumerar parcelas restantes
+  const rem=D.bills.filter(b=>b.group===_dpGroup).sort((a,b)=>a.month.localeCompare(b.month));
+  if(rem.length>0){
+    const baseDesc=rem[0].desc.replace(/ \(\d+\/\d+\)$/,"");
+    rem.forEach((b,i)=>{b.desc=rem.length>1?`${baseDesc} (${i+1}/${rem.length})`:baseDesc;});
+  }
   closeModal();save();
 }
 
