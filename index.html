@@ -182,7 +182,7 @@ canvas{max-width:100%}
 <!-- INSIGHTS -->
 <div class="page" id="p-charts">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:10px 14px;background:var(--card);border-radius:14px">
-    <button class="btn sm ghost" onclick="insMonthPrev()" style="padding:6px 16px;font-size:20px;line-height:1">‹</button>
+    <button id="ins-month-prev-btn" class="btn sm ghost" onclick="insMonthPrev()" style="padding:6px 16px;font-size:20px;line-height:1">‹</button>
     <span id="ins-month-lbl" style="font-weight:700;font-size:15px"></span>
     <button class="btn sm ghost" id="ins-month-next-btn" onclick="insMonthNext()" style="padding:6px 16px;font-size:20px;line-height:1">›</button>
   </div>
@@ -810,7 +810,7 @@ function invRow(it){const b=brlOf(it);const r=b.at-b.ap;const unit=it.moeda==="U
 return `<div class="row"><div class="name" onclick="openInv('${it.id}')"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small></div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;}
 let _invView="classe";
 let _insMonth=todayMonth();
-function insMonthPrev(){_insMonth=addM(_insMonth,-1);renderCharts();}
+function insMonthPrev(){if(_insMonth>todayMonth()){_insMonth=addM(_insMonth,-1);renderCharts();}}
 function insMonthNext(){_insMonth=addM(_insMonth,1);renderCharts();}
 function setInvView(v){
   _invView=v;
@@ -995,38 +995,35 @@ function showEconomiaMes(inc,exp,taxa){
     <button class="btn" onclick="closeModal()">Fechar</button>`);
 }
 function renderCharts(){
-  if(typeof Chart==="undefined")return;
   const today=todayMonth();
   const insM=_insMonth||today;
-  const future=addM(today,3);
-  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=future).slice(-6);
-  const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
-  const el=n=>document.getElementById(n);
-  const pastMonths=months.filter(m=>m<=today);
-  const pastExp=pastMonths.map(m=>sumExp(m));
-  const pastInc=pastMonths.map(m=>sumInc(m));
-  // Categorias do mês atual
-  const byCat={};D.bills.filter(b=>b.month===today&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
+  // nav label + botão ‹ desabilitado no mês mínimo (mês atual)
+  const elN=n=>document.getElementById(n);
+  if(elN("ins-month-lbl"))elN("ins-month-lbl").textContent=mLabel(insM);
+  if(elN("ins-month-next-btn"))elN("ins-month-next-btn").style.opacity="1";
+  const prevBtn=elN("ins-month-prev-btn");if(prevBtn)prevBtn.style.opacity=insM<=today?"0.3":"1";
+  // Categorias do mês selecionado
+  const byCat={};D.bills.filter(b=>b.month===insM&&b.type!=="income").forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+ +b.value});
   const catEntries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   const totalExp=catEntries.reduce((s,[,v])=>s+v,0);
   // ---- KPIs ----
   const disp=totalAccounts();
   const inv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
   const pat=disp+inv;
-  const expAtual=sumExp(today),incAtual=sumInc(today);
+  const expAtual=sumExp(insM),incAtual=sumInc(insM);
   const taxa=incAtual?Math.round((incAtual-expAtual)/incAtual*100):0;
   const topCat=catEntries[0];
   const metaFalta=D.metas.length?D.metas.map(g=>{const{cur,tot}=calcMetaProg(g);return Math.max(0,tot-cur);}).reduce((a,b)=>a+b,0):null;
   // Comparativo com mês anterior
-  const prevM=addM(today,-1);
+  const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // Card cartão mais utilizado
+  // Card cartão mais utilizado (filtrado pelo mês selecionado)
   let cardKpi=null;
   if(D.cards.length){
     const cardUsage=D.cards.map(card=>{
       const isNu=/nubank/i.test(card.name);
-      const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+      const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
       const pct2=card.limit?Math.round(used/card.limit*100):0;
       return {name:card.name,used,limit:card.limit,pct:pct2};
     }).sort((a,b)=>b.pct-a.pct)[0];
@@ -1054,19 +1051,18 @@ function renderCharts(){
   ].filter(Boolean);
   // ---- Alertas inteligentes ----
   const alertas=[];
-  D.cards.forEach(c=>{if(c.limit){const isNu=/nubank/i.test(c.name);const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);const p2=Math.round(used/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used)}/${fmt(c.limit)})`});}});
+  D.cards.forEach(c=>{if(c.limit){const isNu=/nubank/i.test(c.name);const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);const p2=Math.round(used/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used)}/${fmt(c.limit)})`});}});
   if(diffPct!==null&&diffPct>20)alertas.push({t:"warn",m:`🔥 Gastos ${diffPct}% acima do mês anterior (${fmt(expAtual)} vs ${fmt(prevExp)})`});
   if(diffPct!==null&&diffPct<=-10)alertas.push({t:"ok",m:`✅ Gastos ${Math.abs(diffPct)}% menores que o mês anterior. Ótimo!`});
   if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês — meta recomendada: 20%`});
   if(incAtual>0&&taxa>=30)alertas.push({t:"ok",m:`🎉 Você economizou ${taxa}% da renda este mês. Excelente!`});
   D.metas.forEach(g=>{const{pct}=calcMetaProg(g);if(pct>=80&&pct<100)alertas.push({t:"ok",m:`🎯 Meta "${g.name}" quase lá: ${pct}%`});if(pct>=100)alertas.push({t:"ok",m:`✅ Meta "${g.name}" concluída!`});});
   if(insM===today){const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)} — pode superar receita de ${fmt(incAtual)}`});}}
-  // nav label + botão › desabilitado no mês atual
-  if(el("ins-month-lbl"))el("ins-month-lbl").textContent=mLabel(insM);
-  if(el("ins-month-next-btn"))el("ins-month-next-btn").style.opacity="1";
+  const el=n=>document.getElementById(n);
   if(el("ins-alertas")){el("ins-alertas").innerHTML=`<div class="sec-title"><h2>🔔 Alertas e insights · ${mShort(insM)}</h2></div><div class="card">`+(alertas.length?alertas.map(a=>`<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:${a.t==="danger"?"var(--red)":a.t==="ok"?"var(--green)":"var(--amber)"}">${a.m}</div>`).join(""):`<div class="note" style="padding:6px 0">✅ Tudo em ordem. Continue assim!</div>`)+"</div>";}
   if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini" ${k.onclick?`onclick="${k.onclick}" style="cursor:pointer"`:""}><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
-  // ---- Patrimônio (line) ----
+  // ---- Gráficos (requer Chart.js) ----
+  if(typeof Chart==="undefined")return;
   if(!D.patHistory)D.patHistory={};
   const patMs=Object.keys(D.patHistory).sort().slice(-12);
   const patWrap=el("ins-pat-wrap");
