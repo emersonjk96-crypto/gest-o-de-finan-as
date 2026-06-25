@@ -1063,6 +1063,9 @@ function renderCharts(){
   if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini" ${k.onclick?`onclick="${k.onclick}" style="cursor:pointer"`:""}><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
   // ---- Gráficos (requer Chart.js) ----
   if(typeof Chart==="undefined")return;
+  const future=addM(today,3);
+  const months=[...new Set([...D.months,...D.bills.map(b=>b.month)])].sort().filter(m=>m<=future).slice(-6);
+  const expM=months.map(m=>sumExp(m)),incM=months.map(m=>sumInc(m)),labels=months.map(mShort);
   if(!D.patHistory)D.patHistory={};
   const patMs=Object.keys(D.patHistory).sort().slice(-12);
   const patWrap=el("ins-pat-wrap");
