@@ -590,12 +590,8 @@ function delNuPurchase(id,fromMonth){
 const fbConfig={apiKey:"AIzaSyCv14OWtQcnx9WC20Q3fzXOtJtDL1gE-Ok",authDomain:"painel-financeiro-e48e4.firebaseapp.com",projectId:"painel-financeiro-e48e4",storageBucket:"painel-financeiro-e48e4.firebasestorage.app",messagingSenderId:"1028502749170",appId:"1:1028502749170:web:0bdaa49aa5b1e2e82db56b"};
 const SKSTORE="painel_fin_syncid";
 const DEFAULT_SYNC_ID="9bbfef9b-57bd-4aa4-be3emqtzqv55";
-function getSyncId(){
-  let k=localStorage.getItem(SKSTORE);
-  if(!k){k=DEFAULT_SYNC_ID;localStorage.setItem(SKSTORE,k);}
-  return k;
-}
-let syncId=getSyncId();
+localStorage.setItem(SKSTORE,DEFAULT_SYNC_ID);
+let syncId=DEFAULT_SYNC_ID;
 let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
 function fbInit(){
