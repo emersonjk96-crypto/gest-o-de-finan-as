@@ -165,7 +165,7 @@ canvas{max-width:100%}
   <div class="card hero">
     <div class="lbl">Patrimônio investido</div>
     <div class="big" id="i-total">R$ 0</div>
-    <div class="note" id="i-rend"></div>
+    <div id="i-rend" style="margin-top:10px;font-size:13px;line-height:1.9"></div>
   </div>
   <div id="i-alloc"></div>
   <div class="card">
@@ -819,7 +819,16 @@ function renderInvest(){
   const totGeral=rfVal+at;
   document.getElementById("i-total").textContent=fmt0(totGeral);
   const rend=at-ap,pct=ap?(rend/ap*100):0;
-  document.getElementById("i-rend").innerHTML=`RF: ${fmt0(rfVal)} · Ativos: ${fmt0(at)} · Resultado <span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span>`;
+  const rendEl=document.getElementById("i-rend");
+  if(rendEl){
+    const rv=at; // renda variável = ativos de mercado
+    rendEl.innerHTML=`
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Fixa</span><span>${fmt0(rfVal)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Variável</span><span>${fmt0(rv)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span style="font-weight:700">Patrimônio investido</span><span style="font-weight:700">${fmt0(totGeral)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Rentabilidade</span><span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span></div>
+    `;
+  }
   // Definição de grupos por classe
   const DEF_GRUPOS=[
     {tipo:"RF",    icon:"💰",label:"Renda Fixa",  cor:"#2fd27d"},
@@ -868,10 +877,17 @@ function renderInvest(){
         const rows=rfAccs.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>${a.banco||a.moeda||"BRL"}</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("")+g.items.map(invRow).join("");
         return html+(rows?`<div class="card">${rows}</div>`:"");
       }
-      // Cripto: BTC/ETH separados de altcoins
+      // Cripto: resumo no topo + BTC/ETH separados de altcoins
       if(g.tipo==="Cripto"&&g.items.length){
         const main=g.items.filter(i=>CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
         const alt=g.items.filter(i=>!CRIPTO_MAIN.has((i.ticker||i.ativo||"").toUpperCase()));
+        const altTotal=alt.reduce((s,i)=>s+brlOf(i).at,0);
+        // Card de resumo
+        html+=`<div class="card" style="margin-bottom:6px">`;
+        main.forEach(i=>{const b=brlOf(i);html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line)"><span style="font-size:13px">₿ ${i.ativo}</span><span style="font-size:13px;font-weight:600">${fmt0(b.at)}</span></div>`;});
+        if(alt.length)html+=`<div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-size:13px;color:var(--muted)">+ Altcoins (${alt.length})</span><span style="font-size:13px;font-weight:600">${fmt0(altTotal)}</span></div>`;
+        html+=`</div>`;
+        // Detalhes
         if(main.length)html+=`<div class="card" style="margin-bottom:6px">${main.map(invRow).join("")}</div>`;
         if(alt.length)html+=`<div style="font-size:11px;color:var(--muted);margin:6px 4px 2px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Altcoins</div><div class="card">${alt.map(invRow).join("")}</div>`;
         return html;
@@ -921,6 +937,19 @@ function renderMore(){
     const barColor=over?"var(--red)":pct>80?"var(--amber)":"var(--accent)";
     const usedStr=over?`<span style="color:var(--red)">${fmt0(used)}</span>`:fmt0(used);
     const overWarn=over?`<div style="font-size:11px;color:var(--red);margin-top:3px">⚠️ Limite excedido em ${fmt0(used-c.limit)}</div>`:"";
+    if(over){
+      return `<div style="padding:10px;margin-bottom:4px;background:rgba(255,93,108,.08);border:1px solid var(--red);border-radius:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <b onclick="openCard(${c.id})" style="cursor:pointer">${c.name}</b>
+          <span style="font-size:20px;font-weight:800;color:var(--red)">${Math.round(used/c.limit*100)}%</span>
+        </div>
+        <div class="barwrap" style="height:10px;margin-bottom:6px"><div style="height:10px;border-radius:5px;background:var(--red);width:100%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span style="color:var(--muted)">${fmt(used)} / ${fmt(c.limit)}</span>
+          <span style="color:var(--red);font-weight:600">🚨 Excedido em ${fmt(used-c.limit)}</span>
+        </div>
+      </div>`;
+    }
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openCard(${c.id})">${c.name}</b><span class="note">${usedStr} / ${fmt0(c.limit)}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${barColor}"></div></div>${overWarn}</div>`;
   }).join(""):'<div class="empty">Nenhum cartão.</div>';
   document.getElementById("m-metas").innerHTML=D.metas.length?D.metas.map(g=>{
@@ -943,6 +972,20 @@ function savePatSnap(){
 }
 const CAT_EMOJI={"Alimentação":"🍔","Moradia":"🏠","Transporte":"🚗","Saúde":"🏥","Educação":"📚","Lazer":"🎉","Vestuário":"👕","Cartão":"💳","Contas":"📄","Investimento":"📈","Salário":"💼","Freelance":"💻","Extra":"⭐","Outros":"📦"};
 function catEmoji(n){return CAT_EMOJI[n]||"🏷️";}
+function showEconomiaMes(inc,exp,taxa){
+  const econ=inc-exp;
+  const cor=taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)";
+  modal(`<h3>💰 Como calculamos?</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px">É a porcentagem da sua renda que permaneceu disponível após pagar as despesas do mês.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:14px;font-size:13px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Receitas</span><span class="pos">+${fmt(inc)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Despesas</span><span class="neg">-${fmt(exp)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Valor economizado</span><span style="color:${cor};font-weight:700">${fmt(econ)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0 0"><b>Percentual economizado</b><b style="font-size:20px;color:${cor}">${taxa}%</b></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 16px">Quanto maior esse percentual, maior sua capacidade de poupar e investir. Meta recomendada: <b>20%</b> ou mais.</p>
+    <button class="btn" onclick="closeModal()">Fechar</button>`);
+}
 function renderCharts(){
   if(typeof Chart==="undefined")return;
   const today=todayMonth();
@@ -971,7 +1014,14 @@ function renderCharts(){
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
   const kpis=[
     {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)"},
-    {icon:"💸",label:"Taxa de poupança",val:taxa>=0?taxa+"%":"—",sub:taxa>=0?(taxa>=20?"Ótimo ritmo 🎉":"Tente chegar em 20%"):"Sem receitas no mês",color:taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--muted)"},
+    {icon:"💰",label:"Percentual economizado",val:incAtual>0?taxa+"%":"—",
+      sub:incAtual===0?"⏳ Registre receitas para calcular":
+          taxa>=30?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
+          taxa>=20?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
+          taxa>0?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
+          "Despesas superaram as receitas",
+      color:incAtual===0?"var(--muted)":taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)",
+      onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""},
     topCat?{icon:"🏷️",label:"Maior gasto do mês",val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)"}:null,
     diffPct!==null?{icon:diffPct>0?"🔥":"✅",label:"Vs. mês anterior",val:(diffPct>0?"+":"")+diffPct+"%",sub:diffPct>0?`Gastou mais R$ ${fmt0(expAtual-prevExp)}`:`Economizou R$ ${fmt0(prevExp-expAtual)}`,color:diffPct>0?"var(--red)":"var(--green)"}:null,
     metaFalta!==null?{icon:"🎯",label:"Para atingir as metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)"}:null,
@@ -982,12 +1032,12 @@ function renderCharts(){
   D.cards.forEach(c=>{if(c.limit){const isNu=/nubank/i.test(c.name);const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);const p2=Math.round(used/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used)}/${fmt(c.limit)})`});}});
   if(diffPct!==null&&diffPct>20)alertas.push({t:"warn",m:`🔥 Gastos ${diffPct}% acima do mês anterior (${fmt(expAtual)} vs ${fmt(prevExp)})`});
   if(diffPct!==null&&diffPct<=-10)alertas.push({t:"ok",m:`✅ Gastos ${Math.abs(diffPct)}% menores que o mês anterior. Ótimo!`});
-  if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Taxa de poupança baixa: ${taxa}% — meta recomendada: 20%`});
-  if(incAtual>0&&taxa>=30)alertas.push({t:"ok",m:`🎉 Taxa de poupança excelente: ${taxa}%!`});
+  if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês — meta recomendada: 20%`});
+  if(incAtual>0&&taxa>=30)alertas.push({t:"ok",m:`🎉 Você economizou ${taxa}% da renda este mês. Excelente!`});
   D.metas.forEach(g=>{const{pct}=calcMetaProg(g);if(pct>=80&&pct<100)alertas.push({t:"ok",m:`🎯 Meta "${g.name}" quase lá: ${pct}%`});if(pct>=100)alertas.push({t:"ok",m:`✅ Meta "${g.name}" concluída!`});});
   const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)} — pode superar receita de ${fmt(incAtual)}`});}
   if(el("ins-alertas")){el("ins-alertas").innerHTML=`<div class="sec-title"><h2>🔔 Alertas e insights</h2></div><div class="card">`+(alertas.length?alertas.map(a=>`<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:${a.t==="danger"?"var(--red)":a.t==="ok"?"var(--green)":"var(--amber)"}">${a.m}</div>`).join(""):`<div class="note" style="padding:6px 0">✅ Tudo em ordem. Continue assim!</div>`)+"</div>";}
-  if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini"><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
+  if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini" ${k.onclick?`onclick="${k.onclick}" style="cursor:pointer"`:""}><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
   // ---- Patrimônio (line) ----
   if(!D.patHistory)D.patHistory={};
   const patMs=Object.keys(D.patHistory).sort().slice(-12);
