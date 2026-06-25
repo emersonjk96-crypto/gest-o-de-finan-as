@@ -110,7 +110,7 @@ canvas{max-width:100%}
   </div>
   <div class="grid2">
     <div class="mini"><div class="lbl">Despesas do mês</div><div class="val neg" id="h-apagar">R$ 0</div></div>
-    <div class="mini"><div class="lbl">Receitas do mês</div><div class="val pos" id="h-receita">R$ 0</div></div>
+    <div class="mini"><div class="lbl">Receitas recebidas</div><div class="val pos" id="h-receita">R$ 0</div><div class="note" id="h-receita-prev" style="font-size:11px;margin-top:2px"></div></div>
     <div class="mini"><div class="lbl">Falta pagar</div><div class="val" id="h-falta">R$ 0</div></div>
   </div>
   <div class="mini" style="margin:8px 0;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(79,140,255,.12),rgba(79,140,255,.04));border:1px solid rgba(79,140,255,.25)">
@@ -725,6 +725,9 @@ function render(){
   document.getElementById("h-livre").textContent="Livre (após o que falta pagar e o reservado): "+fmt0(tot-falta-(D.reserved||0));
   document.getElementById("h-apagar").textContent=fmt0(exp);
   document.getElementById("h-receita").textContent=fmt0(inc);
+  const incPrev=D.bills.filter(b=>b.month===realM&&b.type==="income"&&!b.paid).reduce((s,b)=>s+ +b.value,0);
+  const prevEl=document.getElementById("h-receita-prev");
+  if(prevEl)prevEl.innerHTML=incPrev>0?`<span style="color:var(--muted)">+ ${fmt0(incPrev)} previsto</span>`:"";
   document.getElementById("h-falta").textContent=fmt0(falta);
   const sobra=inc-exp;const se=document.getElementById("h-sobra");se.textContent=fmt0(sobra);se.className="val "+(sobra>=0?"pos":"neg");
   document.getElementById("h-reserved").textContent=fmt0(D.reserved||0);
@@ -1012,20 +1015,36 @@ function renderCharts(){
   const prevM=addM(today,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
+  // Card cartão mais utilizado
+  let cardKpi=null;
+  if(D.cards.length){
+    const cardUsage=D.cards.map(card=>{
+      const isNu=/nubank/i.test(card.name);
+      const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+      const pct2=card.limit?Math.round(used/card.limit*100):0;
+      return {name:card.name,used,limit:card.limit,pct:pct2};
+    }).sort((a,b)=>b.pct-a.pct)[0];
+    if(cardUsage&&cardUsage.limit){
+      const over=cardUsage.pct>100;
+      cardKpi={icon:"💳",label:"Cartão "+cardUsage.name,
+        val:cardUsage.pct+"%",
+        sub:over?`🚨 Excedido em ${fmt0(cardUsage.used-cardUsage.limit)}`:`${fmt0(cardUsage.used)} de ${fmt0(cardUsage.limit)}`,
+        color:over?"var(--red)":cardUsage.pct>80?"var(--amber)":"var(--green)"};
+    }
+  }
   const kpis=[
     {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)"},
-    {icon:"💰",label:"Percentual economizado",val:incAtual>0?taxa+"%":"—",
-      sub:incAtual===0?"⏳ Registre receitas para calcular":
-          taxa>=30?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
+    {icon:"💰",label:"Percentual economizado",val:incAtual>0?taxa+"%":"0%",
+      sub:incAtual===0?"⏳ Aguardando receitas do mês":
           taxa>=20?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
           taxa>0?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
           "Despesas superaram as receitas",
       color:incAtual===0?"var(--muted)":taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)",
       onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""},
-    topCat?{icon:"🏷️",label:"Maior gasto do mês",val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)"}:null,
-    diffPct!==null?{icon:diffPct>0?"🔥":"✅",label:"Vs. mês anterior",val:(diffPct>0?"+":"")+diffPct+"%",sub:diffPct>0?`Gastou mais R$ ${fmt0(expAtual-prevExp)}`:`Economizou R$ ${fmt0(prevExp-expAtual)}`,color:diffPct>0?"var(--red)":"var(--green)"}:null,
-    metaFalta!==null?{icon:"🎯",label:"Para atingir as metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)"}:null,
     inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)"}:null,
+    cardKpi,
+    topCat?{icon:"🏷️",label:"Maior gasto do mês",val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)"}:null,
+    metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)"}:null,
   ].filter(Boolean);
   // ---- Alertas inteligentes ----
   const alertas=[];
