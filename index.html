@@ -589,8 +589,12 @@ function delNuPurchase(id,fromMonth){
 /* ---------- FIREBASE SYNC (sem login — por código) ---------- */
 const fbConfig={apiKey:"AIzaSyCv14OWtQcnx9WC20Q3fzXOtJtDL1gE-Ok",authDomain:"painel-financeiro-e48e4.firebaseapp.com",projectId:"painel-financeiro-e48e4",storageBucket:"painel-financeiro-e48e4.firebasestorage.app",messagingSenderId:"1028502749170",appId:"1:1028502749170:web:0bdaa49aa5b1e2e82db56b"};
 const SKSTORE="painel_fin_syncid";
-function genSyncId(){return "xxxxxxxx-xxxx-4xxx-yxxx".replace(/[xy]/g,function(c){const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16)})+Date.now().toString(36)}
-function getSyncId(){let k=localStorage.getItem(SKSTORE);if(!k){k=genSyncId();localStorage.setItem(SKSTORE,k)}return k}
+const DEFAULT_SYNC_ID="9bbfef9b-57bd-4aa4-be3emqtzqv55";
+function getSyncId(){
+  let k=localStorage.getItem(SKSTORE);
+  if(!k){k=DEFAULT_SYNC_ID;localStorage.setItem(SKSTORE,k);}
+  return k;
+}
 let syncId=getSyncId();
 let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
@@ -615,7 +619,10 @@ function fbListen(){
 }
 function fbPush(){if(!fbDb)return;fbDb.collection("syncs").doc(syncId).set({data:D,updatedAt:D.updatedAt||Date.now()}).catch(function(){});}
 function schedulePush(){clearTimeout(pushTimer2);pushTimer2=setTimeout(fbPush,900);}
-function copySyncId(){navigator.clipboard.writeText(syncId).then(function(){alert("Código copiado! Cole no outro dispositivo em Mais → Sincronização.")}).catch(function(){prompt("Copie este código:",syncId);})}
+function copySyncId(){
+  const link=window.location.origin+window.location.pathname+"?sync="+syncId;
+  navigator.clipboard.writeText(link).then(function(){alert("Link copiado! Abra no celular e os dados sincronizam automaticamente.")}).catch(function(){prompt("Copie este link e abra no celular:",link);})
+}
 function applySyncId(){
   const v=(document.getElementById("sync-input")||{value:""}).value.trim();
   if(!v||v===syncId)return;
@@ -626,19 +633,16 @@ function renderAuth(){
   const b=document.getElementById("acc-box");if(!b)return;
   const short=syncId.slice(0,8)+"…";
   b.innerHTML=`
-    <div style="margin-bottom:10px">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Seu código de sincronização</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input value="${syncId}" readonly style="flex:1;font-size:11px;font-family:monospace;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 10px">
-        <button class="btn sm" onclick="copySyncId()">Copiar</button>
+    <button class="btn" style="width:100%;margin-bottom:12px;font-size:15px" onclick="copySyncId()">📲 Compartilhar com celular</button>
+    <p class="note" style="margin:0 0 14px">Clique acima no computador → link copiado → abra no celular → dados sincronizam sozinhos.</p>
+    <details style="font-size:12px;color:var(--muted)">
+      <summary style="cursor:pointer;margin-bottom:6px">Avançado: inserir código manualmente</summary>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="sync-input" placeholder="Cole o código de sincronização" style="flex:1;font-size:11px">
+        <button class="btn sm" onclick="applySyncId()">Conectar</button>
       </div>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Conectar outro dispositivo</div>
-    <div style="display:flex;gap:8px">
-      <input id="sync-input" placeholder="Cole o código do outro dispositivo" style="flex:1;font-size:11px">
-      <button class="btn sm" onclick="applySyncId()">Conectar</button>
-    </div>
-    <p class="note" style="margin-top:8px">Copie o código acima e cole no celular. Sem login necessário.</p>`;
+      <div style="margin-top:8px;font-size:11px;font-family:monospace;color:var(--muted);word-break:break-all">${syncId}</div>
+    </details>`;
 }
 
 /* ---------- COTAÇÕES ---------- */
