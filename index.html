@@ -811,7 +811,7 @@ return `<div class="row"><div class="name" onclick="openInv('${it.id}')"><b>${it
 let _invView="classe";
 let _insMonth=todayMonth();
 function insMonthPrev(){_insMonth=addM(_insMonth,-1);renderCharts();}
-function insMonthNext(){if(_insMonth<todayMonth()){_insMonth=addM(_insMonth,1);renderCharts();}}
+function insMonthNext(){_insMonth=addM(_insMonth,1);renderCharts();}
 function setInvView(v){
   _invView=v;
   document.getElementById("inv-btn-classe").className="btn sm"+(v==="classe"?"":" ghost");
@@ -1063,7 +1063,7 @@ function renderCharts(){
   if(insM===today){const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)} — pode superar receita de ${fmt(incAtual)}`});}}
   // nav label + botão › desabilitado no mês atual
   if(el("ins-month-lbl"))el("ins-month-lbl").textContent=mLabel(insM);
-  if(el("ins-month-next-btn"))el("ins-month-next-btn").style.opacity=insM>=today?"0.3":"1";
+  if(el("ins-month-next-btn"))el("ins-month-next-btn").style.opacity="1";
   if(el("ins-alertas")){el("ins-alertas").innerHTML=`<div class="sec-title"><h2>🔔 Alertas e insights · ${mShort(insM)}</h2></div><div class="card">`+(alertas.length?alertas.map(a=>`<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:${a.t==="danger"?"var(--red)":a.t==="ok"?"var(--green)":"var(--amber)"}">${a.m}</div>`).join(""):`<div class="note" style="padding:6px 0">✅ Tudo em ordem. Continue assim!</div>`)+"</div>";}
   if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini" ${k.onclick?`onclick="${k.onclick}" style="cursor:pointer"`:""}><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
   // ---- Patrimônio (line) ----
