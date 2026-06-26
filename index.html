@@ -658,7 +658,7 @@ async function updatePrices(silent){
   _priceUpdating=true;
   setPriceInfo("Buscando preços...");
   const map={};let ok=0,miss=[];
-  const divMap={};// lastDiv por ticker
+  const divMap={};const payDateMap={};const payFreqMap={};// lastDiv, data e frequência por ticker
   // 1) Brapi — tickers BRL (B3), excluindo criptos — preço + dividendos
   const brTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD"&&i.tipo!=="Cripto").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
   if(brTk.length){
@@ -667,9 +667,18 @@ async function updatePrices(silent){
       const j=await r.json();
       (j.results||[]).forEach(q=>{
         if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice;
-        // último dividendo/provento pago
         const divs=q.dividendsData?.cashDividends;
-        if(divs?.length){const last=divs.sort((a,b)=>new Date(b.paymentDate)-new Date(a.paymentDate))[0];if(last?.rate)divMap[q.symbol]=last.rate;}
+        if(divs?.length){
+          const sorted=divs.slice().sort((a,b)=>new Date(b.paymentDate)-new Date(a.paymentDate));
+          const last=sorted[0];
+          if(last?.rate)divMap[q.symbol]=last.rate;
+          if(last?.paymentDate)payDateMap[q.symbol]=last.paymentDate;
+          if(sorted.length>=2){
+            const gaps=[];
+            for(let i=0;i<Math.min(sorted.length-1,5);i++){const g=(new Date(sorted[i].paymentDate)-new Date(sorted[i+1].paymentDate))/864e5;if(g>0)gaps.push(g);}
+            if(gaps.length){const avg=gaps.reduce((s,g)=>s+g,0)/gaps.length;payFreqMap[q.symbol]=avg<45?"mensal":avg<100?"trimestral":avg<200?"semestral":"anual";}
+          }
+        }
       });
     }catch(e){}
   }
@@ -688,19 +697,45 @@ async function updatePrices(silent){
         if(meta?.regularMarketPrice!=null){map[t]=meta.regularMarketPrice;got=true;}
         // dividendos recentes
         const events=j.chart?.result?.[0]?.events?.dividends;
-        if(events){const vals=Object.values(events).sort((a,b)=>b.date-a.date);if(vals[0]?.amount)divMap[t]=vals[0].amount;}
+        if(events){
+          const vals=Object.values(events).sort((a,b)=>b.date-a.date);
+          if(vals[0]?.amount)divMap[t]=vals[0].amount;
+          if(vals[0]?.date)payDateMap[t]=new Date(vals[0].date*1000).toISOString().split("T")[0];
+          if(vals.length>=2){
+            const gaps=[];
+            for(let i=0;i<Math.min(vals.length-1,5);i++){const g=(vals[i].date-vals[i+1].date)/86400;if(g>0)gaps.push(g);}
+            if(gaps.length){const avg=gaps.reduce((s,g)=>s+g,0)/gaps.length;payFreqMap[t]=avg<45?"mensal":avg<100?"trimestral":avg<200?"semestral":"anual";}
+          }
+        }
       }catch(e){}
     }
   }
   const curM=todayMonth();
+  const todayStr=new Date().toISOString().split("T")[0];
   D.invest.forEach(it=>{
     const t=(it.ticker||it.ativo||"").split(" ")[0];
     if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t);
     if(divMap[t]!=null)it.lastDiv=divMap[t];
+    if(payDateMap[t])it.lastPayDate=payDateMap[t];
+    if(payFreqMap[t])it.payFreq=payFreqMap[t];
+    // Auto-marca recebido: se a data de pagamento já passou
+    if(it.lastPayDate)(D.divHistory||[]).forEach(h=>{
+      if(!h.received&&h.ticker===t){
+        const payM=it.lastPayDate.substring(0,7);
+        if(payM>=h.month&&it.lastPayDate<=todayStr)h.received=true;
+      }
+    });
+    // Cria entrada no histórico respeitando a frequência
     if(it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF")){
       if(!D.divHistory)D.divHistory=[];
-      const exists=D.divHistory.find(h=>h.ticker===t&&h.month===curM);
-      if(!exists)D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:Math.round(it.lastDiv*it.qtd*10000)/10000,currency:it.moeda||"BRL",qtd:it.qtd,received:false});
+      const freq=it.payFreq||"mensal";
+      // Só cria no mês corrente se mensal, ou se o lastPayDate cai neste mês
+      const payMonthOk=!it.lastPayDate||(it.lastPayDate.substring(0,7)===curM);
+      const shouldCreate=freq==="mensal"||payMonthOk;
+      if(shouldCreate){
+        const exists=D.divHistory.find(h=>h.ticker===t&&h.month===curM);
+        if(!exists)D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:Math.round(it.lastDiv*it.qtd*10000)/10000,currency:it.moeda||"BRL",qtd:it.qtd,received:false,payDate:it.lastPayDate||null});
+      }
     }
   });
   save();
@@ -841,12 +876,17 @@ function invRow(it){
   }
   const isDetail=it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF";
   const clickFn=isDetail?`openInvDetail('${it.id}')`:`openInv('${it.id}')`;
+  // Só mostra estimativa mensal de dividendos para ativos de pagamento mensal
+  const freq=it.payFreq||"mensal";
+  const showDivLine=hasdiv&&(freq==="mensal");
+  const freqBadge=hasdiv&&freq!=="mensal"?` <span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.07);padding:1px 6px;border-radius:6px;vertical-align:middle">${freq}</span>`:"";
+  const visibleDivLine=showDivLine?divLine:"";
   // Para ativos em USD: valor principal em US$, BRL abaixo. Para BRL: valor + variação.
   const valUSD=isUSD?(+it.price||0)*it.qtd:null;
   const rightCol=isUSD
     ?`<div class="amt">US$ ${valUSD.toFixed(2)}</div><small style="color:var(--muted);font-size:12px">${fmt(b.at)}</small>`
     :`<div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small>`;
-  return `<div class="row"><div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right">${rightCol}</div></div>`;
+  return `<div class="row"><div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${it.ativo}<span class="tag">${it.tipo}</span>${freqBadge}</b><small>${it.qtd} cotas × ${unit}</small>${visibleDivLine}</div><div style="text-align:right">${rightCol}</div></div>`;
 }
 function openInvDetail(id){
   const it=D.invest.find(x=>x.id==id);
@@ -858,8 +898,11 @@ function openInvDetail(id){
   const mn=hasdiv?it.lastDiv*it.qtd:0;
   const mBRL=hasdiv?(isUSD?mn*D.usd:mn):0;
   const yrBRL=mBRL*12;const yrNat=mn*12;
-  const pmedio=it.aplicado&&it.qtd?it.aplicado/it.qtd:0;
-  const yoc=pmedio&&mBRL?(mBRL*12/(pmedio*(isUSD?D.usd:1))*100).toFixed(1):null;
+  // YoC correto: dividendo anual BRL / total investido BRL
+  const yoc=it.aplicado&&mBRL?(mBRL*12/it.aplicado*100).toFixed(1):null;
+  // Próximo pagamento estimado
+  const freqDays={mensal:30,trimestral:91,semestral:182,anual:365}[it.payFreq||"mensal"]||30;
+  const nextPay=(()=>{if(!it.lastPayDate)return null;const d=new Date(it.lastPayDate+"T12:00:00");const today=new Date();while(d<=today)d.setDate(d.getDate()+freqDays);return d.toLocaleDateString("pt-BR");})();
   const tk=(it.ticker||it.ativo||"").split(" ")[0];
   const hist=(D.divHistory||[]).filter(h=>h.ticker===tk).sort((a,c)=>c.month.localeCompare(a.month));
   const totRecUSD=hist.filter(h=>h.received&&h.currency==="USD").reduce((s,h)=>s+h.amount,0);
@@ -869,9 +912,9 @@ function openInvDetail(id){
     const hBRL=h.currency==="USD"?h.amount*D.usd:h.amount;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><div><div style="font-size:13px;font-weight:600">${mLabel(h.month)}</div><div style="font-size:11px;color:${h.received?"var(--green)":"#f59e0b"}">${h.received?"✅ Recebido":"⏳ Previsto"}</div></div><div style="text-align:right">${h.currency==="USD"?`<div style="font-size:13px;font-weight:600">US$ ${(+h.amount).toFixed(2)}</div><div style="font-size:11px;color:var(--muted)">≈ ${fmt(hBRL)}</div>`:`<div style="font-size:13px;font-weight:600">${fmt(h.amount)}</div>`}${!h.received?`<button class="btn sm ghost" style="margin-top:4px;font-size:10px;padding:2px 8px" onclick="markDivReceived('${h.id}')">Marcar recebido</button>`:""}</div></div>`;
   }).join(""):`<div style="color:var(--muted);font-size:12px;padding:8px 0">Nenhum histórico. Clique em "Atualizar preços" para gerar automaticamente.</div>`;
-  const divSection=hasdiv?`<div style="background:linear-gradient(135deg,rgba(47,210,125,.12),rgba(47,210,125,.04));border:1px solid rgba(47,210,125,.3);border-radius:12px;padding:12px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">💰 Renda passiva estimada</div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Por cota</span><span style="font-weight:600">${isUSD?"US$ "+(+it.lastDiv).toFixed(4):"R$ "+(+it.lastDiv).toFixed(4)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Mensal</span><span style="font-weight:600">${isUSD?`US$ ${mn.toFixed(2)} ≈ ${fmt(mBRL)}`:fmt(mBRL)}</span></div><div style="display:flex;justify-content:space-between${yoc?";margin-bottom:4px":""}"><span style="font-size:12px;color:var(--muted)">Anual</span><span style="font-weight:600">${isUSD?`US$ ${yrNat.toFixed(2)} ≈ ${fmt(yrBRL)}`:fmt(yrBRL)}</span></div>${yoc?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Yield on Cost</span><span style="font-weight:700;color:var(--green)">${yoc}% a.a.</span></div>`:""}</div>`:"";
+  const divSection=hasdiv?`<div style="background:linear-gradient(135deg,rgba(47,210,125,.12),rgba(47,210,125,.04));border:1px solid rgba(47,210,125,.3);border-radius:12px;padding:12px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">💰 Renda passiva estimada${it.payFreq&&it.payFreq!=="mensal"?` · ${it.payFreq}`:""}</div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Por cota</span><span style="font-weight:600">${isUSD?"US$ "+(+it.lastDiv).toFixed(4):"R$ "+(+it.lastDiv).toFixed(4)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">${it.payFreq&&it.payFreq!=="mensal"?it.payFreq.charAt(0).toUpperCase()+it.payFreq.slice(1):"Mensal"}</span><span style="font-weight:600">${isUSD?`US$ ${mn.toFixed(2)} ≈ ${fmt(mBRL)}`:fmt(mBRL)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Anual</span><span style="font-weight:600">${isUSD?`US$ ${yrNat.toFixed(2)} ≈ ${fmt(yrBRL)}`:fmt(yrBRL)}</span></div>${yoc?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Yield on Cost</span><span style="font-weight:700;color:var(--green)">${yoc}% a.a.</span></div>`:""}</div>`:"";
   const recumSection=totRecBRL>0?`<div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--muted)">✅ Total recebido</span><div style="text-align:right">${totRecUSD>0?`<div style="font-size:12px;font-weight:600">US$ ${totRecUSD.toFixed(2)}</div>`:""}${totRecBRLonly>0&&totRecUSD>0?`<div style="font-size:12px;font-weight:600">R$ ${fmt(totRecBRLonly)}</div>`:""}<div style="font-size:13px;font-weight:700;color:var(--green)">≈ ${fmt(totRecBRL)}</div></div></div>`:"";
-  modal(`<h3 style="margin-bottom:14px">${it.ativo} <span class="tag">${it.tipo}</span></h3><div class="grid2" style="gap:8px;margin-bottom:14px"><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Preço atual</div><div style="font-weight:700">${isUSD?"US$ "+(+it.price||0).toFixed(2):fmt(it.price||0)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Quantidade</div><div style="font-weight:700">${it.qtd} cotas</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Investido</div><div style="font-weight:700">${fmt(it.aplicado)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Valor atual</div><div style="font-weight:700">${fmt(b.at)}</div></div></div><div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Resultado</span><span style="font-weight:700;color:${r>=0?"var(--green)":"var(--red)"}">${r>=0?"+":""}${fmt(r)} (${pct}%)</span></div></div>${divSection}${recumSection}<div style="font-size:13px;font-weight:600;margin-bottom:8px">📅 Histórico de proventos</div>${histHtml}<div style="display:flex;gap:8px;margin-top:16px"><button class="btn" onclick="closeModal();openInv('${id}')">✏️ Editar</button><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`);
+  modal(`<h3 style="margin-bottom:14px">${it.ativo} <span class="tag">${it.tipo}</span>${it.payFreq&&it.payFreq!=="mensal"?` <span style="font-size:11px;color:var(--muted);background:rgba(255,255,255,.07);padding:2px 7px;border-radius:8px">${it.payFreq}</span>`:""}</h3><div class="grid2" style="gap:8px;margin-bottom:14px"><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Preço atual</div><div style="font-weight:700">${isUSD?"US$ "+(+it.price||0).toFixed(2):fmt(it.price||0)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Quantidade</div><div style="font-weight:700">${it.qtd} cotas</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Investido</div><div style="font-weight:700">${isUSD?`US$ ${(it.aplicado/D.usd).toFixed(2)}`+`<div style="font-size:11px;color:var(--muted);font-weight:400">≈ ${fmt(it.aplicado)}</div>`:fmt(it.aplicado)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Valor atual</div><div style="font-weight:700">${fmt(b.at)}${isUSD?`<div style="font-size:11px;color:var(--muted);font-weight:400">≈ US$ ${((+it.price||0)*it.qtd).toFixed(2)}</div>`:""}</div></div></div><div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Resultado</span><span style="font-weight:700;color:${r>=0?"var(--green)":"var(--red)"}">${r>=0?"+":""}${fmt(r)} (${pct}%)</span></div>${nextPay&&hasdiv?`<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:12px;color:var(--muted)">📅 Próximo dividendo</span><span style="font-size:12px;color:#f59e0b;font-weight:600">${nextPay}</span></div>`:""}${isUSD?`<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font-size:12px;color:var(--muted)">Câmbio utilizado</span><span style="font-size:12px;color:var(--muted)">US$ 1 = R$ ${D.usd.toFixed(2)}</span></div>`:""}</div>${divSection}${recumSection}<div style="font-size:13px;font-weight:600;margin-bottom:8px">📅 Histórico de proventos</div>${histHtml}<div style="display:flex;gap:8px;margin-top:16px"><button class="btn" onclick="closeModal();openInv('${id}')">✏️ Editar</button><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`);
 }
 function markDivReceived(hid){
   const h=(D.divHistory||[]).find(x=>x.id==hid);
@@ -1478,14 +1521,4 @@ function setupFixas(){
       }
     });
   });
-  curMonth=base;save();alert("Contas fixas geradas! Edite cada uma para preencher o valor.");nav("bills");
-}
-
-render();
-fbInit();
-if(D.usdAuto)updateUSD(true);
-// Auto-atualizar cotações ao abrir e a cada 30 min
-if(D.brapiToken){setTimeout(function(){updatePrices(true)},3000);setInterval(function(){updatePrices(true)},30*60*1000);}
-</script>
-</body>
-</
+  curMonth=base;save();alert("Contas fixas gerada
