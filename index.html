@@ -897,7 +897,7 @@ function openInvDetail(id){
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><div><div style="font-size:13px;font-weight:600">${mLabel(h.month)}</div><div style="font-size:11px;color:${h.received?"var(--green)":"#f59e0b"}">${h.received?"✅ Recebido":"⏳ Previsto"}</div></div><div style="text-align:right">${h.currency==="USD"?`<div style="font-size:13px;font-weight:600">US$ ${(+h.amount).toFixed(2)}</div><div style="font-size:11px;color:var(--muted)">≈ ${fmt(hBRL)}</div>`:`<div style="font-size:13px;font-weight:600">${fmt(h.amount)}</div>`}${!h.received?`<button class="btn sm ghost" style="margin-top:4px;font-size:10px;padding:2px 8px" onclick="markDivReceived('${h.id}')">Marcar recebido</button>`:""}</div></div>`;
   }).join(""):`<div style="color:var(--muted);font-size:12px;padding:8px 0">Nenhum histórico. Clique em "Atualizar preços" para gerar automaticamente.</div>`;
   const freqLabel=it.payFreq&&it.payFreq!=="mensal"?` <span style="font-size:11px;color:var(--muted);background:rgba(255,255,255,.07);padding:2px 7px;border-radius:8px">${it.payFreq}</span>`:"";
-  const investidoStr=isUSD?`US$ ${(it.aplicado/D.usd).toFixed(2)}<div style="font-size:11px;color:var(--muted);font-weight:400">≈ ${fmt(it.aplicado)}</div>`:fmt(it.aplicado);
+  const investidoStr=isUSD?`US$ ${(+it.aplicado).toFixed(2)}<div style="font-size:11px;color:var(--muted);font-weight:400">≈ ${fmt(b.ap)}</div>`:fmt(it.aplicado);
   const atualStr=fmt(b.at)+(isUSD?`<div style="font-size:11px;color:var(--muted);font-weight:400">≈ US$ ${((+it.price||0)*it.qtd).toFixed(2)}</div>`:"");
   const divSection=hasdiv?`<div style="background:linear-gradient(135deg,rgba(47,210,125,.12),rgba(47,210,125,.04));border:1px solid rgba(47,210,125,.3);border-radius:12px;padding:12px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">💰 Renda passiva estimada${it.payFreq&&it.payFreq!=="mensal"?" · "+it.payFreq:""}</div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Por cota</span><span style="font-weight:600">${isUSD?"US$ "+(+it.lastDiv).toFixed(4):"R$ "+(+it.lastDiv).toFixed(4)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">${it.payFreq&&it.payFreq!=="mensal"?it.payFreq.charAt(0).toUpperCase()+it.payFreq.slice(1):"Mensal"}</span><span style="font-weight:600">${isUSD?`US$ ${mn.toFixed(2)} ≈ ${fmt(mBRL)}`:fmt(mBRL)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:${yoc?"4px":"0"}"><span style="font-size:12px;color:var(--muted)">Anual</span><span style="font-weight:600">${isUSD?`US$ ${yrNat.toFixed(2)} ≈ ${fmt(yrBRL)}`:fmt(yrBRL)}</span></div>${yoc?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Yield on Cost</span><span style="font-weight:700;color:var(--green)">${yoc}% a.a.</span></div>`:""}</div>`:"";
   const recumSection=totRecBRL>0?`<div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--muted)">✅ Total recebido</span><div style="text-align:right">${totRecUSD>0?`<div style="font-size:12px;font-weight:600">US$ ${totRecUSD.toFixed(2)}</div>`:""}${totRecBRLonly>0&&totRecUSD>0?`<div style="font-size:12px;font-weight:600">R$ ${fmt(totRecBRLonly)}</div>`:""}<div style="font-size:13px;font-weight:700;color:var(--green)">≈ ${fmt(totRecBRL)}</div></div></div>`:"";
@@ -1088,6 +1088,73 @@ function savePatSnap(){
 }
 const CAT_EMOJI={"Alimentação":"🍔","Moradia":"🏠","Transporte":"🚗","Saúde":"🏥","Educação":"📚","Lazer":"🎉","Vestuário":"👕","Cartão":"💳","Contas":"📄","Investimento":"📈","Salário":"💼","Freelance":"💻","Extra":"⭐","Outros":"📦"};
 function catEmoji(n){return CAT_EMOJI[n]||"🏷️";}
+function showKpiPatrimonio(pat,disp,inv){
+  modal(`<h3>📈 Patrimônio total</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px">Soma de tudo que você possui: contas disponíveis + investimentos.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Disponível em contas</span><span style="color:var(--green);font-weight:700">${fmt0(disp)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Investimentos</span><span style="color:var(--accent);font-weight:700">${fmt0(inv)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">Total</span><span style="font-weight:800;font-size:18px">${fmt0(pat)}</span></div>
+    </div>
+    <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
+}
+function showKpiInvestimentos(inv,pat){
+  const pct=pat?Math.round(inv/pat*100):0;
+  const cor=pct>=20?"var(--green)":pct>=10?"var(--amber)":"var(--muted)";
+  modal(`<h3>🏦 Investimentos</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px">Percentual do patrimônio total alocado em investimentos.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Total investido</span><span style="color:var(--accent);font-weight:700">${fmt0(inv)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span>Patrimônio total</span><span style="font-weight:700">${fmt0(pat)}</span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">% investido</span><span style="font-weight:800;font-size:18px;color:${cor}">${pct}%</span></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted)">Recomendação: manter ao menos 20% do patrimônio investido.</p>
+    <button class="btn" onclick="closeModal();nav('invest')">Ver investimentos</button>
+    <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
+}
+function showKpiCartao(){
+  const insM=_insMonth||todayMonth();
+  const rows=D.cards.filter(c=>c.limit).map(card=>{
+    const isNu=/nubank/i.test(card.name);
+    const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+(+b.value),0);
+    const pct=Math.round(used/card.limit*100);
+    const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600">${card.name}</span><span style="color:${cor};font-weight:700">${pct}%</span></div><div style="height:4px;background:var(--line);border-radius:4px"><div style="height:4px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px"></div></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px"><span>${fmt0(used)} de ${fmt0(card.limit)}</span><span>${pct>100?"🚨 Excedido":pct>80?"⚠️ Atenção":"✅ OK"}</span></div></div>`;
+  }).join("")||'<div class="note">Nenhum cartão com limite cadastrado.</div>';
+  modal(`<h3>💳 Cartões · ${mLabel(insM)}</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Utilização do limite de cada cartão no mês.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:10px">${rows}</div>
+    <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
+}
+function showKpiMaiorGasto(){
+  const insM=_insMonth||todayMonth();
+  const byCat={};
+  D.bills.filter(b=>b.month===insM&&b.type!=="income"&&!b.isNubank).forEach(b=>{byCat[b.cat||"Outros"]=(byCat[b.cat||"Outros"]||0)+(+b.value);});
+  const entries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const totalExp=entries.reduce((s,e)=>s+e[1],0);
+  const rows=entries.slice(0,8).map(([cat,val])=>{
+    const pct=totalExp?Math.round(val/totalExp*100):0;
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span>${catEmoji(cat)} ${cat}</span><div><span style="font-weight:600">${fmt0(val)}</span><span style="font-size:11px;color:var(--muted);margin-left:8px">${pct}%</span></div></div><div style="height:3px;background:var(--line);border-radius:3px"><div style="height:3px;width:${pct}%;background:var(--accent);border-radius:3px"></div></div></div>`;
+  }).join("");
+  modal(`<h3>🏷️ Gastos por categoria · ${mLabel(insM)}</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Distribuição das despesas do mês.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:10px">${rows}</div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;padding:4px 0"><span>Total despesas</span><span>${fmt0(totalExp)}</span></div>
+    <button class="btn ghost" onclick="closeModal()" style="margin-top:12px">Fechar</button>`);
+}
+function showKpiMetas(){
+  const rows=D.metas.map(g=>{
+    const{cur,tot,pct}=calcMetaProg(g);
+    const falta=Math.max(0,tot-cur);
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600">${g.name}</span><span style="color:${pct>=100?"var(--green)":"var(--muted)"}">${pct}%</span></div><div style="height:4px;background:var(--line);border-radius:4px;margin-bottom:4px"><div style="height:4px;width:${Math.min(pct,100)}%;background:${pct>=100?"var(--green)":"var(--accent)"};border-radius:4px"></div></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${fmt0(cur)} de ${fmt0(tot)}</span>${falta>0?`<span style="color:var(--red)">falta ${fmt0(falta)}</span>`:'<span style="color:var(--green)">✅ Concluída!</span>'}</div></div>`;
+  }).join("")||'<div class="note">Nenhuma meta cadastrada.</div>';
+  const totalFalta=D.metas.map(g=>{const{cur,tot}=calcMetaProg(g);return Math.max(0,tot-cur);}).reduce((a,b)=>a+b,0);
+  modal(`<h3>🎯 Metas financeiras</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Progresso de todas as metas.</p>
+    <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:10px">${rows}</div>
+    ${totalFalta>0?`<div style="display:flex;justify-content:space-between;font-weight:700;padding:4px 0"><span>Total faltando</span><span style="color:var(--red)">${fmt0(totalFalta)}</span></div>`:""}
+    <button class="btn ghost" onclick="closeModal()" style="margin-top:12px">Fechar</button>`);
+}
 function showEconomiaMes(inc,exp,taxa){
   const econ=inc-exp;
   const cor=taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)";
@@ -1143,19 +1210,20 @@ function renderCharts(){
         color:over?"var(--red)":cardUsage.pct>80?"var(--amber)":"var(--green)"};
     }
   }
-  const kpis=[
-    {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)"},
+    const kpis=[
+    {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)",onclick:`showKpiPatrimonio(${pat},${disp},${inv})`},
     {icon:"💰",label:`Economizado · ${mShort(insM)}`,val:incAtual>0?taxa+"%":"0%",
       sub:incAtual===0?"⏳ Aguardando receitas do mês":
           taxa>=20?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
           taxa>0?`De cada R$100 recebidos, R$${taxa} ficaram disponíveis`:
           "Despesas superaram as receitas",
       color:incAtual===0?"var(--muted)":taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)",
-      onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""},
-    inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)"}:null,
-    cardKpi,
-    topCat?{icon:"🏷️",label:`Maior gasto · ${mShort(insM)}`,val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)"}:null,
-    metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)"}:null,
+      onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""}
+    ,
+    inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
+    cardKpi?{...cardKpi,onclick:"showKpiCartao()"}:null,
+    topCat?{icon:"🏷️",label:`Maior gasto · ${mShort(insM)}`,val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)",onclick:"showKpiMaiorGasto()"}:null,
+    metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)",onclick:"showKpiMetas()"}:null,
   ].filter(Boolean);
   // ---- Alertas inteligentes ----
   const alertas=[];
