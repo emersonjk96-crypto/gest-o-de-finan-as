@@ -657,33 +657,45 @@ async function updatePrices(silent){
   _priceUpdating=true;
   setPriceInfo("Buscando preços...");
   const map={};let ok=0,miss=[];
-  // 1) Brapi — apenas tickers BRL (B3)
-  const brTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  const divMap={};// lastDiv por ticker
+  // 1) Brapi — tickers BRL (B3), excluindo criptos — preço + dividendos
+  const brTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD"&&i.tipo!=="Cripto").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
   if(brTk.length){
     try{
-      const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(brTk.join(","))+"?token="+encodeURIComponent(D.brapiToken));
+      const r=await fetch("https://brapi.dev/api/quote/"+encodeURIComponent(brTk.join(","))+"?fundamental=true&token="+encodeURIComponent(D.brapiToken));
       const j=await r.json();
-      (j.results||[]).forEach(q=>{if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice});
+      (j.results||[]).forEach(q=>{
+        if(q.regularMarketPrice!=null)map[q.symbol]=q.regularMarketPrice;
+        // último dividendo/provento pago
+        const divs=q.dividendsData?.cashDividends;
+        if(divs?.length){const last=divs.sort((a,b)=>new Date(b.paymentDate)-new Date(a.paymentDate))[0];if(last?.rate)divMap[q.symbol]=last.rate;}
+      });
     }catch(e){}
   }
-  // 2) Yahoo Finance via proxy CORS — tickers USD individualmente
+  // 2) Yahoo Finance via proxy — tickers USD (REITs, ETFs) — preço + dividendos
   const usdTkSet=[...new Set(D.invest.filter(i=>i.moeda==="USD").map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
   const proxies=["https://corsproxy.io/?","https://api.allorigins.win/raw?url="];
   for(const t of usdTkSet){
-    if(map[t]!=null)continue;
     let got=false;
     for(const px of proxies){
       if(got)break;
       try{
-        const url=px+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+t+"?interval=1d&range=1d");
+        const url=px+encodeURIComponent("https://query1.finance.yahoo.com/v8/finance/chart/"+t+"?interval=1mo&range=6mo&events=div");
         const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
         const j=await r.json();
-        const p=j.chart?.result?.[0]?.meta?.regularMarketPrice;
-        if(p!=null){map[t]=p;got=true;}
+        const meta=j.chart?.result?.[0]?.meta;
+        if(meta?.regularMarketPrice!=null){map[t]=meta.regularMarketPrice;got=true;}
+        // dividendos recentes
+        const events=j.chart?.result?.[0]?.events?.dividends;
+        if(events){const vals=Object.values(events).sort((a,b)=>b.date-a.date);if(vals[0]?.amount)divMap[t]=vals[0].amount;}
       }catch(e){}
     }
   }
-  D.invest.forEach(it=>{const t=(it.ticker||it.ativo||"").split(" ")[0];if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t)});
+  D.invest.forEach(it=>{
+    const t=(it.ticker||it.ativo||"").split(" ")[0];
+    if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t);
+    if(divMap[t]!=null)it.lastDiv=divMap[t];
+  });
   save();
   setPriceInfo(`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:""));
   _priceUpdating=false;
@@ -807,8 +819,14 @@ function renderAccounts(){
   document.getElementById("a-list").innerHTML=html;
 }
 
-function invRow(it){const b=brlOf(it);const r=b.at-b.ap;const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
-return `<div class="row"><div class="name" onclick="openInv('${it.id}')"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small></div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;}
+function invRow(it){
+  const b=brlOf(it);const r=b.at-b.ap;
+  const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
+  const hasdiv=it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF");
+  const divBRL=hasdiv?(it.moeda==="USD"?it.lastDiv*it.qtd*D.usd:it.lastDiv*it.qtd):0;
+  const divLine=hasdiv?`<small style="color:var(--green);font-size:11px">💰 div: ${it.moeda==="USD"?"US$":"R$"} ${(+it.lastDiv).toFixed(4)}/cota → ${fmt(divBRL)}/mês</small>`:"";
+  return `<div class="row"><div class="name" onclick="openInv('${it.id}')"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;
+}
 let _invView="classe";
 let _insMonth=todayMonth();
 function insMonthPrev(){if(_insMonth>todayMonth()){_insMonth=addM(_insMonth,-1);renderCharts();}}
@@ -828,14 +846,18 @@ function renderInvest(){
   const totGeral=rfVal+at;
   document.getElementById("i-total").textContent=fmt0(totGeral);
   const rend=at-ap,pct=ap?(rend/ap*100):0;
+  // Dividendos esperados por mês (FIIs + REITs + ETFs com lastDiv)
+  const totalDivBRL=D.invest.filter(i=>i.lastDiv&&(i.tipo==="FII"||i.tipo==="REIT"||i.tipo==="ETF"))
+    .reduce((s,i)=>s+(i.moeda==="USD"?i.lastDiv*i.qtd*D.usd:i.lastDiv*i.qtd),0);
   const rendEl=document.getElementById("i-rend");
   if(rendEl){
-    const rv=at; // renda variável = ativos de mercado
+    const rv=at;
     rendEl.innerHTML=`
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Fixa</span><span>${fmt0(rfVal)}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Variável</span><span>${fmt0(rv)}</span></div>
       <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span style="font-weight:700">Patrimônio investido</span><span style="font-weight:700">${fmt0(totGeral)}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Rentabilidade</span><span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span></div>
+      ${totalDivBRL>0?`<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.15)"><span style="color:var(--green);font-weight:600">💰 Dividendos/mês</span><span style="color:var(--green);font-weight:700">${fmt0(totalDivBRL)}</span></div>`:""}
     `;
   }
   // Definição de grupos por classe
@@ -1301,14 +1323,15 @@ function saveAcc(id){
 }
 function delAcc(id){D.accounts=D.accounts.filter(x=>x.id!==id);closeModal();save()}
 
-function openInv(id){const it=id?D.invest.find(x=>x.id===id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL",corretora:""};
-  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCR11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd / Quantidade</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="fld"><label>Instituição / Corretora</label><select id="f-cor"><option value="" ${!it.corretora?"selected":""}>— selecione —</option><option ${it.corretora=="Nubank"?"selected":""}>Nubank</option><option ${it.corretora=="Nomad"?"selected":""}>Nomad</option><option ${it.corretora=="Binance"?"selected":""}>Binance</option><option ${it.corretora=="XP"?"selected":""}>XP</option><option ${it.corretora=="BTG"?"selected":""}>BTG</option><option ${it.corretora=="Rico"?"selected":""}>Rico</option><option ${it.corretora=="Clear"?"selected":""}>Clear</option><option ${it.corretora=="Outros"?"selected":""}>Outros</option></select></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="note">Valor atual = cotação × nº de cotas (atualiza sozinho no botão Atualizar preços).</div><div class="flex"><button class="btn" onclick="saveInv('${id||0}')">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv('${id}')">Excluir</button></div>`:""}`);}
+function openInv(id){const it=id?D.invest.find(x=>x.id==id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL",corretora:"",lastDiv:""};
+  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCA11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd / Quantidade</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="fld"><label>Instituição / Corretora</label><select id="f-cor"><option value="" ${!it.corretora?"selected":""}>— selecione —</option><option ${it.corretora=="Nubank"?"selected":""}>Nubank</option><option ${it.corretora=="Nomad"?"selected":""}>Nomad</option><option ${it.corretora=="Binance"?"selected":""}>Binance</option><option ${it.corretora=="XP"?"selected":""}>XP</option><option ${it.corretora=="BTG"?"selected":""}>BTG</option><option ${it.corretora=="Rico"?"selected":""}>Rico</option><option ${it.corretora=="Clear"?"selected":""}>Clear</option><option ${it.corretora=="Outros"?"selected":""}>Outros</option></select></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="fld"><label>Último dividendo / provento (por cota)</label><input id="f-div" type="number" inputmode="decimal" value="${it.lastDiv||""}" placeholder="preenchido automaticamente"></div><div class="note">Cotação e dividendos atualizam sozinhos no botão Atualizar preços.</div><div class="flex"><button class="btn" onclick="saveInv('${id||0}')">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv('${id}')">Excluir</button></div>`:""}`);}
 function saveInv(id){const qt=parseFloat(document.getElementById("f-qt").value)||0;const price=parseFloat(document.getElementById("f-cur").value)||0;
 const corEl=document.getElementById("f-cor");const corretora=corEl?corEl.value:"";
-const o={ativo:document.getElementById("f-at").value.trim(),ticker:document.getElementById("f-tk").value.trim(),tipo:document.getElementById("f-tp").value,qtd:qt,moeda:document.getElementById("f-mo").value,aplicado:parseFloat(document.getElementById("f-ap").value)||0,price:price,atual:Math.round(price*qt*100)/100,corretora};
+const divEl=document.getElementById("f-div");const lastDiv=divEl&&divEl.value?parseFloat(divEl.value):undefined;
+const o={ativo:document.getElementById("f-at").value.trim(),ticker:document.getElementById("f-tk").value.trim(),tipo:document.getElementById("f-tp").value,qtd:qt,moeda:document.getElementById("f-mo").value,aplicado:parseFloat(document.getElementById("f-ap").value)||0,price:price,atual:Math.round(price*qt*100)/100,corretora,...(lastDiv!=null?{lastDiv}:{})};
 if(!o.ativo)return;if(!o.ticker)o.ticker=o.ativo.split(" ")[0];
-if(id){Object.assign(D.invest.find(x=>x.id===id),o)}else D.invest.push({id:nid(),...o});closeModal();save();}
-function delInv(id){D.invest=D.invest.filter(x=>x.id!==id);closeModal();save()}
+if(id){Object.assign(D.invest.find(x=>x.id==id),o)}else D.invest.push({id:nid(),...o});closeModal();save();}
+function delInv(id){D.invest=D.invest.filter(x=>x.id!=id);closeModal();save()}
 
 function openCard(id){const c=id?D.cards.find(x=>x.id===id):{name:"",limit:""};
   modal(`<h3>${id?"Editar cartão":"Novo cartão"}</h3><div class="fld"><label>Nome</label><input id="f-cn" value="${c.name}"></div><div class="fld"><label>Limite (R$)</label><input id="f-cl" type="number" inputmode="decimal" value="${c.limit}"></div><div class="flex"><button class="btn" onclick="saveCard(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCard(${id})">Excluir</button></div>`:""}`);}
