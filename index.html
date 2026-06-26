@@ -841,7 +841,12 @@ function invRow(it){
   }
   const isDetail=it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF";
   const clickFn=isDetail?`openInvDetail('${it.id}')`:`openInv('${it.id}')`;
-  return `<div class="row"><div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;
+  // Para ativos em USD: valor principal em US$, BRL abaixo. Para BRL: valor + variação.
+  const valUSD=isUSD?(+it.price||0)*it.qtd:null;
+  const rightCol=isUSD
+    ?`<div class="amt">US$ ${valUSD.toFixed(2)}</div><small style="color:var(--muted);font-size:12px">${fmt(b.at)}</small>`
+    :`<div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small>`;
+  return `<div class="row"><div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right">${rightCol}</div></div>`;
 }
 function openInvDetail(id){
   const it=D.invest.find(x=>x.id==id);
