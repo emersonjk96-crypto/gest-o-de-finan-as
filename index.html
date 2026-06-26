@@ -1113,16 +1113,26 @@ function showKpiInvestimentos(inv,pat){
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
 function showKpiCartao(){
-  const insM=_insMonth||todayMonth();
   const rows=D.cards.filter(c=>c.limit).map(card=>{
     const isNu=/nubank/i.test(card.name);
-    const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+(+b.value),0);
+    // Soma todas as compras de todos os meses (limite é global, não mensal)
+    const allBills=D.bills.filter(b=>b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank)));
+    const used=allBills.reduce((s,b)=>s+(+b.value),0);
     const pct=Math.round(used/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-weight:600">${card.name}</span><span style="color:${cor};font-weight:700">${pct}%</span></div><div style="height:4px;background:var(--line);border-radius:4px"><div style="height:4px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px"></div></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px"><span>${fmt0(used)} de ${fmt0(card.limit)}</span><span>${pct>100?"🚨 Excedido":pct>80?"⚠️ Atenção":"✅ OK"}</span></div></div>`;
+    // Breakdown por mês
+    const byMonth={};allBills.forEach(b=>{byMonth[b.month]=(byMonth[b.month]||0)+(+b.value);});
+    const meses=Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6)
+      .map(([m,v])=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 0"><span>${mLabel(m)}</span><span>${fmt0(v)}</span></div>`).join("");
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:600">${card.name}</span><span style="color:${cor};font-weight:700">${pct}%</span></div>
+      <div style="height:6px;background:var(--line);border-radius:4px;margin-bottom:6px"><div style="height:6px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--muted)">${fmt0(used)} comprometido de ${fmt0(card.limit)}</span><span style="color:${cor}">${pct>100?"🚨 Excedido":pct>80?"⚠️ Atenção":"✅ OK"}</span></div>
+      ${meses?`<div style="padding:6px 8px;background:var(--bg);border-radius:8px;margin-top:4px">${meses}</div>`:""}
+    </div>`;
   }).join("")||'<div class="note">Nenhum cartão com limite cadastrado.</div>';
-  modal(`<h3>💳 Cartões · ${mLabel(insM)}</h3>
-    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Utilização do limite de cada cartão no mês.</p>
+  modal(`<h3>💳 Limite do cartão</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Total comprometido considerando compras de todos os meses. O limite do cartão é consumido por todas as parcelas futuras.</p>
     <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:10px">${rows}</div>
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
@@ -1193,12 +1203,12 @@ function renderCharts(){
   const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // Card cartão mais utilizado (filtrado pelo mês selecionado)
+  // Card cartão mais utilizado (total comprometido = todas as compras de todos os meses)
   let cardKpi=null;
   if(D.cards.length){
     const cardUsage=D.cards.map(card=>{
       const isNu=/nubank/i.test(card.name);
-      const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+      const used=D.bills.filter(b=>b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
       const pct2=card.limit?Math.round(used/card.limit*100):0;
       return {name:card.name,used,limit:card.limit,pct:pct2};
     }).sort((a,b)=>b.pct-a.pct)[0];
