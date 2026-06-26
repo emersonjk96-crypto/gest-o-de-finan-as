@@ -1115,8 +1115,8 @@ function showKpiInvestimentos(inv,pat){
 function showKpiCartao(){
   const rows=D.cards.filter(c=>c.limit).map(card=>{
     const isNu=/nubank/i.test(card.name);
-    // Soma todas as compras de todos os meses (limite é global, não mensal)
-    const allBills=D.bills.filter(b=>b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank)));
+    // Soma todas as compras não pagas de todos os meses (limite é global, não mensal)
+    const allBills=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank)));
     const used=allBills.reduce((s,b)=>s+(+b.value),0);
     const pct=Math.round(used/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
@@ -1208,7 +1208,7 @@ function renderCharts(){
   if(D.cards.length){
     const cardUsage=D.cards.map(card=>{
       const isNu=/nubank/i.test(card.name);
-      const used=D.bills.filter(b=>b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+      const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
       const pct2=card.limit?Math.round(used/card.limit*100):0;
       return {name:card.name,used,limit:card.limit,pct:pct2};
     }).sort((a,b)=>b.pct-a.pct)[0];
