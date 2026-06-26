@@ -277,6 +277,7 @@ function migrate(){
   if(D.usdAuto===undefined)D.usdAuto=true;
   if(D.brapiToken===undefined)D.brapiToken="";
   if(!Array.isArray(D.nuPurchases))D.nuPurchases=[];
+  if(!Array.isArray(D.divHistory))D.divHistory=[];
   ["accounts","bills","invest","cards","metas"].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});
   if(!D.cats||!D.cats.length)D.cats=structuredClone(DEFAULT.cats);
   D.bills.forEach(b=>{
@@ -691,10 +692,16 @@ async function updatePrices(silent){
       }catch(e){}
     }
   }
+  const curM=todayMonth();
   D.invest.forEach(it=>{
     const t=(it.ticker||it.ativo||"").split(" ")[0];
     if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t);
     if(divMap[t]!=null)it.lastDiv=divMap[t];
+    if(it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF")){
+      if(!D.divHistory)D.divHistory=[];
+      const exists=D.divHistory.find(h=>h.ticker===t&&h.month===curM);
+      if(!exists)D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:Math.round(it.lastDiv*it.qtd*10000)/10000,currency:it.moeda||"BRL",qtd:it.qtd,received:false});
+    }
   });
   save();
   setPriceInfo(`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:""));
@@ -823,9 +830,49 @@ function invRow(it){
   const b=brlOf(it);const r=b.at-b.ap;
   const unit=it.moeda==="USD"?("US$ "+(+it.price||0).toFixed(2)):("R$ "+(+it.price||0).toFixed(2));
   const hasdiv=it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF");
-  const divBRL=hasdiv?(it.moeda==="USD"?it.lastDiv*it.qtd*D.usd:it.lastDiv*it.qtd):0;
-  const divLine=hasdiv?`<small style="color:var(--green);font-size:11px">💰 div: ${it.moeda==="USD"?"US$":"R$"} ${(+it.lastDiv).toFixed(4)}/cota → ${fmt(divBRL)}/mês</small>`:"";
-  return `<div class="row"><div class="name" onclick="openInv('${it.id}')"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;
+  const isUSD=it.moeda==="USD";
+  let divLine="";
+  if(hasdiv){
+    const mn=it.lastDiv*it.qtd;
+    const mBRL=isUSD?mn*D.usd:mn;
+    divLine=isUSD
+      ?`<small style="color:var(--green);font-size:11px">💵 US$ ${(+it.lastDiv).toFixed(4)}/cota · US$ ${mn.toFixed(2)}/mês ≈ ${fmt(mBRL)}</small>`
+      :`<small style="color:var(--green);font-size:11px">💰 R$ ${(+it.lastDiv).toFixed(4)}/cota · ${fmt(mBRL)}/mês</small>`;
+  }
+  const isDetail=it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF";
+  const clickFn=isDetail?`openInvDetail('${it.id}')`:`openInv('${it.id}')`;
+  return `<div class="row"><div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${it.ativo}<span class="tag">${it.tipo}</span></b><small>${it.qtd} cotas × ${unit}</small>${divLine}</div><div style="text-align:right"><div class="amt">${fmt(b.at)}</div><small class="${r>=0?"pos":"neg"}" style="font-size:12px">${r>=0?"+":""}${fmt(r)}</small></div></div>`;
+}
+function openInvDetail(id){
+  const it=D.invest.find(x=>x.id==id);
+  if(!it){openInv(id);return;}
+  const b=brlOf(it);const r=b.at-b.ap;
+  const pct=b.ap?(r/b.ap*100).toFixed(1):"0";
+  const isUSD=it.moeda==="USD";
+  const hasdiv=it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF");
+  const mn=hasdiv?it.lastDiv*it.qtd:0;
+  const mBRL=hasdiv?(isUSD?mn*D.usd:mn):0;
+  const yrBRL=mBRL*12;const yrNat=mn*12;
+  const pmedio=it.aplicado&&it.qtd?it.aplicado/it.qtd:0;
+  const yoc=pmedio&&mBRL?(mBRL*12/(pmedio*(isUSD?D.usd:1))*100).toFixed(1):null;
+  const tk=(it.ticker||it.ativo||"").split(" ")[0];
+  const hist=(D.divHistory||[]).filter(h=>h.ticker===tk).sort((a,c)=>c.month.localeCompare(a.month));
+  const totRecUSD=hist.filter(h=>h.received&&h.currency==="USD").reduce((s,h)=>s+h.amount,0);
+  const totRecBRLonly=hist.filter(h=>h.received&&h.currency!=="USD").reduce((s,h)=>s+h.amount,0);
+  const totRecBRL=totRecUSD*D.usd+totRecBRLonly;
+  const histHtml=hist.length?hist.map(h=>{
+    const hBRL=h.currency==="USD"?h.amount*D.usd:h.amount;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><div><div style="font-size:13px;font-weight:600">${mLabel(h.month)}</div><div style="font-size:11px;color:${h.received?"var(--green)":"#f59e0b"}">${h.received?"✅ Recebido":"⏳ Previsto"}</div></div><div style="text-align:right">${h.currency==="USD"?`<div style="font-size:13px;font-weight:600">US$ ${(+h.amount).toFixed(2)}</div><div style="font-size:11px;color:var(--muted)">≈ ${fmt(hBRL)}</div>`:`<div style="font-size:13px;font-weight:600">${fmt(h.amount)}</div>`}${!h.received?`<button class="btn sm ghost" style="margin-top:4px;font-size:10px;padding:2px 8px" onclick="markDivReceived('${h.id}')">Marcar recebido</button>`:""}</div></div>`;
+  }).join(""):`<div style="color:var(--muted);font-size:12px;padding:8px 0">Nenhum histórico. Clique em "Atualizar preços" para gerar automaticamente.</div>`;
+  const divSection=hasdiv?`<div style="background:linear-gradient(135deg,rgba(47,210,125,.12),rgba(47,210,125,.04));border:1px solid rgba(47,210,125,.3);border-radius:12px;padding:12px;margin-bottom:14px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">💰 Renda passiva estimada</div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Por cota</span><span style="font-weight:600">${isUSD?"US$ "+(+it.lastDiv).toFixed(4):"R$ "+(+it.lastDiv).toFixed(4)}</span></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;color:var(--muted)">Mensal</span><span style="font-weight:600">${isUSD?`US$ ${mn.toFixed(2)} ≈ ${fmt(mBRL)}`:fmt(mBRL)}</span></div><div style="display:flex;justify-content:space-between${yoc?";margin-bottom:4px":""}"><span style="font-size:12px;color:var(--muted)">Anual</span><span style="font-weight:600">${isUSD?`US$ ${yrNat.toFixed(2)} ≈ ${fmt(yrBRL)}`:fmt(yrBRL)}</span></div>${yoc?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Yield on Cost</span><span style="font-weight:700;color:var(--green)">${yoc}% a.a.</span></div>`:""}</div>`:"";
+  const recumSection=totRecBRL>0?`<div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--muted)">✅ Total recebido</span><div style="text-align:right">${totRecUSD>0?`<div style="font-size:12px;font-weight:600">US$ ${totRecUSD.toFixed(2)}</div>`:""}${totRecBRLonly>0&&totRecUSD>0?`<div style="font-size:12px;font-weight:600">R$ ${fmt(totRecBRLonly)}</div>`:""}<div style="font-size:13px;font-weight:700;color:var(--green)">≈ ${fmt(totRecBRL)}</div></div></div>`:"";
+  modal(`<h3 style="margin-bottom:14px">${it.ativo} <span class="tag">${it.tipo}</span></h3><div class="grid2" style="gap:8px;margin-bottom:14px"><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Preço atual</div><div style="font-weight:700">${isUSD?"US$ "+(+it.price||0).toFixed(2):fmt(it.price||0)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Quantidade</div><div style="font-weight:700">${it.qtd} cotas</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Investido</div><div style="font-weight:700">${fmt(it.aplicado)}</div></div><div style="background:var(--card2);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--muted)">Valor atual</div><div style="font-weight:700">${fmt(b.at)}</div></div></div><div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Resultado</span><span style="font-weight:700;color:${r>=0?"var(--green)":"var(--red)"}">${r>=0?"+":""}${fmt(r)} (${pct}%)</span></div></div>${divSection}${recumSection}<div style="font-size:13px;font-weight:600;margin-bottom:8px">📅 Histórico de proventos</div>${histHtml}<div style="display:flex;gap:8px;margin-top:16px"><button class="btn" onclick="closeModal();openInv('${id}')">✏️ Editar</button><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`);
+}
+function markDivReceived(hid){
+  const h=(D.divHistory||[]).find(x=>x.id==hid);
+  if(!h)return;
+  h.received=true;save();
+  openInvDetail(h.investId);
 }
 let _invView="classe";
 let _insMonth=todayMonth();
@@ -846,18 +893,22 @@ function renderInvest(){
   const totGeral=rfVal+at;
   document.getElementById("i-total").textContent=fmt0(totGeral);
   const rend=at-ap,pct=ap?(rend/ap*100):0;
-  // Dividendos esperados por mês (FIIs + REITs + ETFs com lastDiv)
-  const totalDivBRL=D.invest.filter(i=>i.lastDiv&&(i.tipo==="FII"||i.tipo==="REIT"||i.tipo==="ETF"))
-    .reduce((s,i)=>s+(i.moeda==="USD"?i.lastDiv*i.qtd*D.usd:i.lastDiv*i.qtd),0);
+  // Renda passiva estimada (FIIs + REITs + ETFs com lastDiv)
+  const divAtivos=D.invest.filter(i=>i.lastDiv&&(i.tipo==="FII"||i.tipo==="REIT"||i.tipo==="ETF"));
+  const totalDivUSD=divAtivos.filter(i=>i.moeda==="USD").reduce((s,i)=>s+i.lastDiv*i.qtd,0);
+  const totalDivBRLonly=divAtivos.filter(i=>i.moeda!=="USD").reduce((s,i)=>s+i.lastDiv*i.qtd,0);
+  const totalDivBRL=totalDivUSD*D.usd+totalDivBRLonly;
+  const totalDivYrBRL=totalDivBRL*12;
   const rendEl=document.getElementById("i-rend");
   if(rendEl){
     const rv=at;
+    const divBlock=totalDivBRL>0?`<div style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:4px">💰 Renda passiva estimada</div>${totalDivUSD>0?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">💵 Mensal (USD)</span><span style="font-size:12px">US$ ${totalDivUSD.toFixed(2)}</span></div>`:""}<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">🇧🇷 Mensal</span><span style="font-weight:700;color:var(--green)">${fmt0(totalDivBRL)}</span></div><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">📅 Anual</span><span style="font-size:12px">${fmt0(totalDivYrBRL)}</span></div></div>`:"";
     rendEl.innerHTML=`
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Fixa</span><span>${fmt0(rfVal)}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Renda Variável</span><span>${fmt0(rv)}</span></div>
       <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span style="font-weight:700">Patrimônio investido</span><span style="font-weight:700">${fmt0(totGeral)}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Rentabilidade</span><span class="${rend>=0?"pos":"neg"}">${rend>=0?"+":""}${fmt0(rend)} (${pct.toFixed(1)}%)</span></div>
-      ${totalDivBRL>0?`<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.15)"><span style="color:var(--green);font-weight:600">💰 Dividendos/mês</span><span style="color:var(--green);font-weight:700">${fmt0(totalDivBRL)}</span></div>`:""}
+      ${divBlock}
     `;
   }
   // Definição de grupos por classe
