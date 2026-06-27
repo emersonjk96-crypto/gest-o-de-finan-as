@@ -135,7 +135,7 @@ canvas{max-width:100%}
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <button class="btn sm" style="flex:1" onclick="openTx(0,'expense')">+ Despesa</button>
       <button class="btn sm ghost" style="flex:1" onclick="openTx(0,'income')">+ Receita</button>
-      <button class="btn sm" id="nu-main-btn" style="flex:1;background:linear-gradient(135deg,#8b00d4,#6200ea);display:flex;align-items:center;justify-content:center;gap:6px" onclick="openNubank(curMonth)">💳 <span id="nu-btn-lbl">Fatura Nu</span><span style="font-size:9px;opacity:.65" onclick="event.stopPropagation();renameNuLabel()" title="Renomear">✏️</span></button>
+      <button class="btn sm" style="flex:1;background:linear-gradient(135deg,#6200ea,#4f8cff)" onclick="openCartoes(curMonth)">💳 Cartões</button>
     </div>
     <div id="b-list"></div>
   </div>
@@ -257,7 +257,7 @@ const CATCOLORS={"Moradia":"#4f8cff","Transporte":"#ffb547","Alimentação":"#2f
 
 const DEFAULT={
   goal:0,reserved:0,usd:5.03,usdAuto:true,brapiToken:"",updatedAt:0,nuLabel:"Fatura Nu",
-  accounts:[],bills:[],invest:[],months:[],cards:[],metas:[],nuPurchases:[],
+  accounts:[],bills:[],invest:[],months:[],cards:[],metas:[],nuPurchases:[],cardPurchases:[],
   cats:[
     {name:"Moradia",type:"expense"},{name:"Transporte",type:"expense"},{name:"Alimentação",type:"expense"},
     {name:"Cartão",type:"expense"},{name:"Lazer",type:"expense"},{name:"Saúde",type:"expense"},
@@ -280,6 +280,20 @@ function migrate(){
   if(D.usdAuto===undefined)D.usdAuto=true;
   if(D.brapiToken===undefined)D.brapiToken="";
   if(!Array.isArray(D.nuPurchases))D.nuPurchases=[];
+  if(!Array.isArray(D.cardPurchases))D.cardPurchases=[];
+  // Migra nuPurchases -> cardPurchases
+  if(D.nuPurchases.length>0){
+    const _nuC=D.cards.find(c=>/nubank/i.test(c.name));
+    if(_nuC){D.nuPurchases.forEach(p=>{if(!D.cardPurchases.find(cp=>cp.id===p.id))D.cardPurchases.push(Object.assign({},p,{cardId:_nuC.id}));});D.nuPurchases=[];}
+  }
+  // Migra isNubank bills -> isFatura com cardId
+  const _nuC2=D.cards.find(c=>/nubank/i.test(c.name));
+  if(_nuC2)D.bills.forEach(b=>{if(b.isNubank&&!b.isFatura){b.isFatura=true;b.cardId=_nuC2.id;}});
+  // Adiciona color/badge aos cartoes
+  D.cards.forEach(c=>{
+    if(!c.color)c.color=/nubank/i.test(c.name)?'#8b00d4':'#4f8cff';
+    if(!c.badge)c.badge=c.name;
+  });
   if(!Array.isArray(D.divHistory))D.divHistory=[];
   if(!D.nuLabel)D.nuLabel="Fatura Nu";
   ["accounts","bills","invest","cards","metas"].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});
@@ -335,8 +349,8 @@ function nuStartMonth(dateStr){
   return y+"-"+String(m).padStart(2,"0");
 }
 
-function getNubankTotal(month){
-  return D.nuPurchases.reduce((sum,p)=>{
+function getCardTotal(cardId,month){
+  return (D.cardPurchases||[]).filter(p=>p.cardId===cardId).reduce((sum,p)=>{
     const idx=monthDiff(p.startMonth,month);
     if(idx>=0&&idx<p.installments){
       const inst=Math.round(p.value/p.installments*100)/100;
@@ -347,56 +361,57 @@ function getNubankTotal(month){
   },0);
 }
 
-function recalcNubank(){
-  // Collect all months affected by any purchase
+function recalcCard(cardId){
   const months=new Set();
-  D.nuPurchases.forEach(p=>{
-    for(let i=0;i<p.installments;i++) months.add(addM(p.startMonth,i));
+  (D.cardPurchases||[]).filter(p=>p.cardId===cardId).forEach(p=>{
+    for(let i=0;i<p.installments;i++)months.add(addM(p.startMonth,i));
   });
-  // Also include months that already have nubank bills (to update/remove)
-  D.bills.filter(b=>b.isNubank).forEach(b=>months.add(b.month));
-
+  D.bills.filter(b=>b.isFatura&&b.cardId===cardId).forEach(b=>months.add(b.month));
   months.forEach(m=>{
-    const total=Math.round(getNubankTotal(m)*100)/100;
-    const ex=D.bills.find(b=>b.isNubank&&b.month===m);
+    const total=Math.round(getCardTotal(cardId,m)*100)/100;
+    const ex=D.bills.find(b=>b.isFatura&&b.cardId===cardId&&b.month===m);
+    const card=D.cards.find(c=>c.id===cardId);
+    const cname=card?card.name:'Cartão';
     if(total>0){
       ensureMonth(m);
-      if(ex){
-        ex.value=total;
-      } else {
-        D.bills.push({id:nid(),month:m,desc:"Fatura Nu",due:m+"-15",value:total,paid:false,type:"expense",cat:"Cartão",isNubank:true});
-      }
-    } else if(ex){
-      // Só apaga automaticamente faturas de meses futuros com valor zero
-      // Meses passados/atual só são removidos pelo botão "Excluir fatura"
-      if(m>todayMonth()){
-        D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===m));
-      }
+      if(ex){ex.value=total;}
+      else{D.bills.push({id:nid(),month:m,desc:'Fatura '+cname,due:m+'-15',value:total,paid:false,type:'expense',cat:'Cartão',isFatura:true,cardId:cardId,isNubank:/nubank/i.test(cname)});}
+    }else if(ex){
+      if(m>todayMonth())D.bills=D.bills.filter(b=>!(b.isFatura&&b.cardId===cardId&&b.month===m));
     }
   });
 }
 
-function openNubank(month){
-  const total=getNubankTotal(month);
-  const nuBill=D.bills.find(b=>b.isNubank&&b.month===month);
-  const purchases=D.nuPurchases.filter(p=>{const idx=monthDiff(p.startMonth,month);return idx>=0&&idx<p.installments});
+function _getCardColor(card){return(card&&card.color)||'#4f8cff';}
+function _getCardBadge(card){return(card&&card.badge)||((card&&card.name)||'Cartão');}
 
-  let html=`<h3>💳 Fatura Nu <span class="nu-badge">Nubank</span></h3>
-    <div class="nu-total-box">
-      <div>
-        <div style="font-size:12px;color:#c084fc;margin-bottom:4px">${mLabel(month)}</div>
-        <div style="font-size:22px;font-weight:800;color:#e9d5ff">${fmt(total)}</div>
-        <div style="font-size:11px;color:#a78bfa;margin-top:2px">${purchases.length} compra(s)</div>
-      </div>
-      <div style="text-align:right">
-        ${nuBill?`<div style="font-size:11px;color:#a78bfa">Vencimento</div>
-        <input type="date" value="${nuBill.due}" onchange="updateNuDue('${month}',this.value)"
-          style="background:rgba(139,0,212,.2);border:1px solid rgba(139,0,212,.4);border-radius:8px;padding:6px 8px;color:#e9d5ff;font-size:13px;margin-top:4px">`:
-        `<div style="font-size:11px;color:#a78bfa">Sem vencimento definido</div>`}
-      </div>
-    </div>
-    <button class="btn" style="width:100%;margin-bottom:14px;background:linear-gradient(135deg,#8b00d4,#6200ea)" onclick="openNuPurchase(0,'${month}')">+ Adicionar compra</button>`;
+function openCartoes(month){
+  const creditCards=D.cards.filter(c=>c.limit);
+  if(!creditCards.length){alert('Nenhum cartão cadastrado. Adicione em Mais.');return;}
+  if(creditCards.length===1){openCardFatura(creditCards[0].id,month);return;}
+  const rows=creditCards.map(c=>{
+    const col=_getCardColor(c);const bdg=_getCardBadge(c);
+    const tot=getCardTotal(c.id,month);
+    return `<div style="padding:12px;background:var(--card2);border-radius:12px;cursor:pointer;border:1px solid var(--line);margin-bottom:8px" onclick="closeModal();setTimeout(()=>openCardFatura(${c.id},'${month}'),50)"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col}"></span><b>${c.name}</b><span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${col}33;color:${col};font-weight:700">${bdg}</span></div><span style="font-size:13px;color:var(--muted)">${fmt(tot)}</span></div></div>`;
+  }).join('');
+  modal(`<h3>💳 Selecionar cartão · ${mLabel(month)}</h3><div style="margin-bottom:16px">${rows}</div><button class="btn ghost" onclick="closeModal()">Fechar</button>`);
+}
 
+function openCardFatura(cardId,month){
+  const card=D.cards.find(c=>c.id===cardId);if(!card)return;
+  const col=_getCardColor(card);const bdg=_getCardBadge(card);
+  const total=getCardTotal(cardId,month);
+  const fBill=D.bills.find(b=>b.isFatura&&b.cardId===cardId&&b.month===month);
+  const purchases=(D.cardPurchases||[]).filter(p=>{
+    const idx=monthDiff(p.startMonth,month);
+    return p.cardId===cardId&&idx>=0&&idx<p.installments;
+  });
+  let html=`<h3 style="display:flex;align-items:center;gap:8px">💳 ${card.name} <span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${col}33;color:${col};font-weight:700">${bdg}</span><span style="font-size:12px;cursor:pointer;opacity:.55;margin-left:auto" onclick="openCard(${cardId})" title="Editar cartão">✏️</span></h3>`;
+  html+=`<div style="background:${col}1a;border:1px solid ${col}44;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">`;
+  html+=`<div><div style="font-size:12px;color:${col};margin-bottom:4px">${mLabel(month)}</div><div style="font-size:22px;font-weight:800">${fmt(total)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${purchases.length} compra(s)</div></div>`;
+  html+=fBill?`<div style="text-align:right"><div style="font-size:11px;color:var(--muted)">Vencimento</div><input type="date" value="${fBill.due}" onchange="updateCardDue(${cardId},'${month}',this.value)" style="background:${col}1a;border:1px solid ${col}44;border-radius:8px;padding:6px 8px;color:var(--txt);font-size:13px;margin-top:4px"></div>`:`<div style="text-align:right"><div style="font-size:11px;color:var(--muted)">Sem vencimento</div></div>`;
+  html+=`</div>`;
+  html+=`<button class="btn" style="width:100%;margin-bottom:14px;background:${col}" onclick="openCardPurchase(${cardId},0,'${month}')">+ Adicionar compra</button>`;
   if(purchases.length){
     html+=purchases.map(p=>{
       const idx=monthDiff(p.startMonth,month);
@@ -404,199 +419,128 @@ function openNubank(month){
       const last=Math.round((p.value-inst*(p.installments-1))*100)/100;
       const thisAmt=(idx===p.installments-1?last:inst);
       const parc=p.installments>1?`${idx+1}/${p.installments} parcela · total ${fmt(p.value)}`:`à vista`;
-      return `<div class="nu-row" onclick="openNuPurchase(${p.id},'${month}')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;min-width:0">
-            <b>${p.desc}</b>
-            <small>${parc} · ${p.cat||"Cartão"}</small>
-            ${p.installments>1?`<small style="color:#a472ff">${fmt(inst)}/mês</small>`:""}
-          </div>
-          <div style="text-align:right;margin-left:10px;flex-shrink:0">
-            <div style="font-weight:700;color:var(--red)">${fmt(thisAmt)}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px">editar →</div>
-          </div>
-        </div>
-      </div>`;
-    }).join("");
-  } else {
+      return `<div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);cursor:pointer" onclick="openCardPurchase(${cardId},${p.id},'${month}')"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div style="flex:1;min-width:0"><b>${p.desc}</b><small style="display:block;color:var(--muted)">${parc} · ${p.cat||'Cartão'}</small>${p.installments>1?`<small style="color:${col}">${fmt(inst)}/mês</small>`:''}</div><div style="text-align:right;margin-left:10px;flex-shrink:0"><div style="font-weight:700;color:var(--red)">${fmt(thisAmt)}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">editar →</div></div></div></div>`;
+    }).join('');
+  }else{
     html+=`<div class="empty">Nenhuma compra nesta fatura.<br>Toque em "+ Adicionar compra" para começar.</div>`;
   }
-
-  html+=`<div style="margin-top:16px;display:flex;gap:8px">
-    <button class="btn ghost" style="flex:1" onclick="closeModal()">Fechar</button>
-    <button class="btn danger" style="flex:1" onclick="delNuFatura('${month}')">🗑 Excluir fatura</button>
-  </div>
-  <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:center">Ajuste de mês (use com cuidado)</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn ghost" style="flex:1;font-size:12px;color:var(--red)" onclick="shiftNuPurchases(-1)">← Voltar 1 mês</button>
-      <button class="btn ghost" style="flex:1;font-size:12px;color:var(--amber)" onclick="shiftNuPurchases(1)">Avançar 1 mês →</button>
-    </div>
-  </div>`;
+  html+=`<div style="margin-top:16px;display:flex;gap:8px"><button class="btn ghost" style="flex:1" onclick="closeModal()">Fechar</button><button class="btn danger" style="flex:1" onclick="delCardFatura(${cardId},'${month}')">🗑 Excluir fatura</button></div>`;
+  html+=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:center">Ajuste de mês</div><div style="display:flex;gap:8px"><button class="btn ghost" style="flex:1;font-size:12px;color:var(--red)" onclick="shiftCardPurchases(${cardId},-1)">← Voltar 1 mês</button><button class="btn ghost" style="flex:1;font-size:12px;color:var(--amber)" onclick="shiftCardPurchases(${cardId},1)">Avançar 1 mês →</button></div></div>`;
   modal(html);
 }
 
-function shiftNuPurchases(n){
-  if(!confirm("Avançar TODAS as compras em "+n+" mês(es)?\nJunho → Julho, Julho → Agosto, etc."))return;
-  D.nuPurchases.forEach(p=>{
+function shiftCardPurchases(cardId,n){
+  if(!confirm('Avançar TODAS as compras em '+n+' mês(es)?'))return;
+  (D.cardPurchases||[]).filter(p=>p.cardId===cardId).forEach(p=>{
     p.startMonth=addM(p.startMonth,n);
-    // Avança a data da compra também
-    try{
-      const parts=p.date.split("-");
-      let y=+parts[0],m=+parts[1],d=+parts[2];
-      m+=n; while(m>12){m-=12;y++;} while(m<1){m+=12;y--;}
-      p.date=y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
-    }catch(e){}
+    try{const parts=p.date.split('-');let y=+parts[0],m=+parts[1],d=+parts[2];m+=n;while(m>12){m-=12;y++;}while(m<1){m+=12;y--;}p.date=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}catch(e){}
   });
-  recalcNubank();
-  closeModal();
-  save();
-  nav("bills");
+  recalcCard(cardId);closeModal();save();nav('bills');
 }
 
-function delNuFatura(month){
-  if(!confirm("Excluir a Fatura Nu de "+mLabel(month)+"?\nIsso remove o registro da fatura e as compras originadas neste mês."))return;
-  // Remove o bill isNubank deste mês
-  D.bills=D.bills.filter(b=>!(b.isNubank&&b.month===month));
-  // Remove compras que começaram neste mês
-  D.nuPurchases=D.nuPurchases.filter(p=>p.startMonth!==month);
-  // Recalcula parcelas de outros meses que possam ter gerado bills aqui
-  recalcNubank();
-  closeModal();
+function delCardFatura(cardId,month){
+  if(!confirm('Excluir a fatura de '+mLabel(month)+'?\nIsso remove o registro e as compras originadas neste mês.'))return;
+  D.bills=D.bills.filter(b=>!(b.isFatura&&b.cardId===cardId&&b.month===month));
+  D.cardPurchases=(D.cardPurchases||[]).filter(p=>!(p.cardId===cardId&&p.startMonth===month));
+  recalcCard(cardId);closeModal();save();
+}
+
+function updateCardDue(cardId,month,val){
+  if(!val)return;const day=val.split('-')[2];
+  D.bills.filter(b=>b.isFatura&&b.cardId===cardId).forEach(b=>{b.due=b.month+'-'+day;});
   save();
 }
 
-function updateNuDue(month,val){
-  if(!val)return;
-  // Pega só o dia (ex: "15") e replica para todos os meses da Fatura Nu
-  const day=val.split("-")[2];
-  D.bills.filter(b=>b.isNubank).forEach(b=>{
-    b.due=b.month+"-"+day;
-  });
-  save();
-}
-
-function openNuPurchase(id,fromMonth){
-  const defaultDate=fromMonth?fromMonth+"-01":new Date().toISOString().slice(0,10);
-  const p=id?D.nuPurchases.find(x=>x.id===id):{desc:"",value:"",date:defaultDate,cat:"Cartão",installments:1};
+function openCardPurchase(cardId,id,fromMonth){
+  const defDate=fromMonth?fromMonth+'-01':new Date().toISOString().slice(0,10);
+  const p=id?(D.cardPurchases||[]).find(x=>x.id===id):{desc:'',value:'',date:defDate,cat:'Cartão',installments:1};
   const backMonth=fromMonth||curMonth;
-  modal(`<h3>${id?"Editar compra":"Nova compra"} <span class="nu-badge">Nu</span></h3>
-    <div class="fld"><label>Descrição da compra</label><input id="nu-desc" value="${p.desc}" placeholder="ex: iPhone, Mercado, Netflix…"></div>
-    <div class="flex">
-      <div class="fld"><label>Valor total (R$)</label><input id="nu-val" type="number" inputmode="decimal" value="${p.value||""}" placeholder="0,00" oninput="updateNuPreview()"></div>
-      <div class="fld"><label>Data da compra</label><input id="nu-date" type="date" value="${p.date}"></div>
-    </div>
-    <div class="flex">
-      <div class="fld"><label>Categoria</label><select id="nu-cat">${D.cats.filter(c=>c.type==="expense").map(c=>`<option ${c.name===(p.cat||"Cartão")?'selected':''}>${c.name}</option>`).join("")}</select></div>
-      <div class="fld"><label>Nº de parcelas</label><input id="nu-inst" type="number" inputmode="numeric" value="${p.installments||1}" min="1" max="60" oninput="updateNuPreview()"></div>
-    </div>
-    <div class="nu-preview" id="nu-preview" style="display:none"></div>
-    <div class="flex" style="margin-top:4px">
-      <button class="btn" onclick="saveNuPurchase(${id||0},'${backMonth}')">Salvar</button>
-      <button class="btn ghost" onclick="openNubank('${backMonth}')">Cancelar</button>
-    </div>
-    ${id?`<div style="text-align:center;margin-top:16px">${p.installments>1?`<button class="del" onclick="openDelNuParcelas(${id},'${backMonth}')">Excluir parcelas</button> · `:""}  <button class="del" onclick="delNuPurchase(${id},'${backMonth}')">Excluir compra inteira</button></div>`:''}
-  `);
-  updateNuPreview();
+  const card=D.cards.find(c=>c.id===cardId);
+  const col=_getCardColor(card);const bdg=_getCardBadge(card);
+  modal(`<h3>${id?'Editar compra':'Nova compra'} <span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${col}33;color:${col};font-weight:700">${bdg}</span></h3>`+
+    `<div class="fld"><label>Descrição da compra</label><input id="cp-desc" value="${p.desc}" placeholder="ex: iPhone, Mercado, Netflix…"></div>`+
+    `<div class="flex"><div class="fld"><label>Valor total (R$)</label><input id="cp-val" type="number" inputmode="decimal" value="${p.value||''}" placeholder="0,00" oninput="updateCpPreview()"></div>`+
+    `<div class="fld"><label>Data da compra</label><input id="cp-date" type="date" value="${p.date}"></div></div>`+
+    `<div class="flex"><div class="fld"><label>Categoria</label><select id="cp-cat">${D.cats.filter(c=>c.type==='expense').map(c=>`<option ${c.name===(p.cat||'Cartão')?'selected':''}>${c.name}</option>`).join('')}</select></div>`+
+    `<div class="fld"><label>Nº de parcelas</label><input id="cp-inst" type="number" inputmode="numeric" value="${p.installments||1}" min="1" max="60" oninput="updateCpPreview()"></div></div>`+
+    `<div style="font-size:12px;color:var(--amber);margin:6px 0 10px;padding:8px 10px;background:rgba(255,181,71,.1);border-radius:8px;display:none" id="cp-preview"></div>`+
+    `<div class="flex" style="margin-top:4px"><button class="btn" style="background:${col}" onclick="saveCardPurchase(${cardId},${id||0},'${backMonth}')">Salvar</button><button class="btn ghost" onclick="openCardFatura(${cardId},'${backMonth}')">Cancelar</button></div>`+
+    (id?`<div style="text-align:center;margin-top:16px">${p.installments>1?`<button class="del" onclick="openDelCardParcelas(${cardId},${id},'${backMonth}')">Excluir parcelas</button> · `:''}<button class="del" onclick="delCardPurchase(${cardId},${id},'${backMonth}')">Excluir compra inteira</button></div>`:'')
+  );
+  updateCpPreview();
 }
 
-function updateNuPreview(){
-  const val=parseFloat(document.getElementById("nu-val")?document.getElementById("nu-val").value:0)||0;
-  const inst=parseInt(document.getElementById("nu-inst")?document.getElementById("nu-inst").value:1)||1;
-  const el=document.getElementById("nu-preview");
-  if(!el)return;
-  if(val>0){
-    el.style.display="block";
-    if(inst>1){
-      const per=Math.round(val/inst*100)/100;
-      el.textContent=`${inst}x de ${fmt(per)} · distribuído automaticamente nos próximos ${inst} meses`;
-    } else {
-      el.textContent=`À vista: ${fmt(val)} · aparece apenas neste mês`;
-    }
-  } else {
-    el.style.display="none";
-  }
+function updateCpPreview(){
+  const val=parseFloat(document.getElementById('cp-val')?.value||0)||0;
+  const inst=parseInt(document.getElementById('cp-inst')?.value||1)||1;
+  const el=document.getElementById('cp-preview');if(!el)return;
+  if(val>0){el.style.display='block';
+    if(inst>1){const per=Math.round(val/inst*100)/100;el.textContent=inst+'x de '+fmt(per)+' · distribuído nos próximos '+inst+' meses';}
+    else{el.textContent='À vista: '+fmt(val)+' · aparece apenas neste mês';}
+  }else{el.style.display='none';}
 }
 
-function saveNuPurchase(id,fromMonth){
-  const desc=(document.getElementById("nu-desc").value||"").trim();
-  const value=parseFloat(document.getElementById("nu-val").value)||0;
-  const date=document.getElementById("nu-date").value;
-  const cat=document.getElementById("nu-cat").value;
-  const installments=Math.max(1,parseInt(document.getElementById("nu-inst").value)||1);
-  if(!desc||!value||!date){alert("Preencha descrição, valor e data.");return}
+function saveCardPurchase(cardId,id,fromMonth){
+  const desc=(document.getElementById('cp-desc').value||'').trim();
+  const value=parseFloat(document.getElementById('cp-val').value)||0;
+  const date=document.getElementById('cp-date').value;
+  const cat=document.getElementById('cp-cat').value;
+  const installments=Math.max(1,parseInt(document.getElementById('cp-inst').value)||1);
+  if(!desc||!value||!date){alert('Preencha descrição, valor e data.');return;}
   const startMonth=nuStartMonth(date);
-  if(id){
-    const p=D.nuPurchases.find(x=>x.id===id);
-    Object.assign(p,{desc,value,date,cat,installments,startMonth});
-  } else {
-    D.nuPurchases.push({id:nid(),desc,value,date,cat,installments,startMonth});
-  }
-  recalcNubank();
-  // Navega para o mês da compra (startMonth), não o mês antigo
-  curMonth=startMonth;
-  closeModal();
-  save();
-  setTimeout(()=>openNubank(startMonth),150);
+  if(id){const p=(D.cardPurchases||[]).find(x=>x.id===id);Object.assign(p,{desc,value,date,cat,installments,startMonth});}
+  else{if(!D.cardPurchases)D.cardPurchases=[];D.cardPurchases.push({id:nid(),cardId,desc,value,date,cat,installments,startMonth});}
+  recalcCard(cardId);
+  curMonth=startMonth;closeModal();save();
+  setTimeout(()=>openCardFatura(cardId,startMonth),150);
 }
 
-let _dnpId=0,_dnpFromMonth="",_dnpDir="proximas";
-function openDelNuParcelas(id,fromMonth){
-  const p=D.nuPurchases.find(x=>x.id===id);if(!p)return;
-  _dnpId=id;_dnpFromMonth=fromMonth;_dnpDir="proximas";
+let _dcpCardId=0,_dcpId=0,_dcpFromMonth='',_dcpDir='proximas';
+function openDelCardParcelas(cardId,id,fromMonth){
+  const p=(D.cardPurchases||[]).find(x=>x.id===id);if(!p)return;
+  _dcpCardId=cardId;_dcpId=id;_dcpFromMonth=fromMonth;_dcpDir='proximas';
   const total=p.installments;
-  const fromIdx=Math.max(0,monthDiff(p.startMonth,fromMonth));
-  modal(`<h3>Excluir parcelas Nu</h3>
-    <div class="seg" style="margin-bottom:14px">
-      <div id="dnp-prox" class="on" onclick="_dnpDir='proximas';document.getElementById('dnp-prox').className='on';document.getElementById('dnp-ult').className='';document.getElementById('dnp-lbl').textContent='Quantas a partir desta (inclusive)?';updateDnpPreview()">Proximas</div>
-      <div id="dnp-ult" onclick="_dnpDir='ultimas';document.getElementById('dnp-ult').className='on';document.getElementById('dnp-prox').className='';document.getElementById('dnp-lbl').textContent='Quantas do final para tras?';updateDnpPreview()">Ultimas</div>
-    </div>
-    <div class="fld"><label id="dnp-lbl">Quantas a partir desta (inclusive)?</label>
-      <input id="dnp-n" type="number" inputmode="numeric" min="1" max="${total}" value="1" oninput="updateDnpPreview()">
-    </div>
-    <div id="dnp-preview" style="margin:10px 0;padding:10px;background:var(--card2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>
-    <div class="flex"><button class="btn danger" onclick="confirmDelNuParcelas()">Excluir</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);
-  updateDnpPreview();
+  modal('<h3>Excluir parcelas</h3>'+
+    '<div class="seg" style="margin-bottom:14px">'+
+    '<div id="dcp-prox" class="on" onclick="_dcpDir=\'proximas\';document.getElementById(\'dcp-prox\').className=\'on\';document.getElementById(\'dcp-ult\').className=\'\';updateDcpPreview()">Proximas</div>'+
+    '<div id="dcp-ult" onclick="_dcpDir=\'ultimas\';document.getElementById(\'dcp-ult\').className=\'on\';document.getElementById(\'dcp-prox\').className=\'\';updateDcpPreview()">Ultimas</div></div>'+
+    '<div class="fld"><label>Quantas a partir desta (inclusive)?</label>'+
+    '<input id="dcp-n" type="number" inputmode="numeric" min="1" max="'+total+'" value="1" oninput="updateDcpPreview()"></div>'+
+    '<div id="dcp-preview" style="margin:10px 0;padding:10px;background:var(--card2);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.8"></div>'+
+    '<div class="flex"><button class="btn danger" onclick="confirmDelCardParcelas()">Excluir</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>');
+  updateDcpPreview();
 }
-function updateDnpPreview(){
-  const p=D.nuPurchases.find(x=>x.id===_dnpId);if(!p)return;
-  const n=Math.max(1,parseInt(document.getElementById("dnp-n").value)||1);
-  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dnpFromMonth));
+function updateDcpPreview(){
+  const p=(D.cardPurchases||[]).find(x=>x.id===_dcpId);if(!p)return;
+  const n=Math.max(1,parseInt(document.getElementById('dcp-n').value)||1);
+  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dcpFromMonth));
   const inst=Math.round(p.value/p.installments*100)/100;
   let months=[];
-  if(_dnpDir==="proximas"){
-    for(let i=fromIdx;i<Math.min(p.installments,fromIdx+n);i++) months.push(addM(p.startMonth,i));
-  }else{
-    for(let i=Math.max(0,p.installments-n);i<p.installments;i++) months.push(addM(p.startMonth,i));
-  }
-  const prev=document.getElementById("dnp-preview");if(!prev)return;
-  if(!months.length){prev.innerHTML="Nenhuma parcela.";return;}
-  prev.innerHTML=`<b style="color:var(--red)">Serao excluidas ${months.length} parcela(s):</b><br>`+months.map(m=>`${mShort(m)} - ${fmt(inst)}`).join("<br>")+`<br><b>Total: ${fmt(inst*months.length)}</b>`;
+  if(_dcpDir==='proximas'){for(let i=fromIdx;i<Math.min(p.installments,fromIdx+n);i++)months.push(addM(p.startMonth,i));}
+  else{for(let i=Math.max(0,p.installments-n);i<p.installments;i++)months.push(addM(p.startMonth,i));}
+  const prev=document.getElementById('dcp-preview');if(!prev)return;
+  if(!months.length){prev.innerHTML='Nenhuma parcela.';return;}
+  prev.innerHTML='<b style="color:var(--red)">Serao excluidas '+months.length+' parcela(s):</b><br>'+months.map(m=>mShort(m)+' - '+fmt(inst)).join('<br>')+'<br><b>Total: '+fmt(inst*months.length)+'</b>';
 }
-function confirmDelNuParcelas(){
-  const p=D.nuPurchases.find(x=>x.id===_dnpId);if(!p)return;
-  const n=Math.max(1,parseInt(document.getElementById("dnp-n").value)||1);
-  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dnpFromMonth));
-  if(_dnpDir==="proximas"){
-    // Remove parcelas do fromIdx em diante por N
-    const keep=p.installments-Math.min(n,p.installments-fromIdx);
-    p.installments=Math.max(fromIdx,keep);
-  }else{
-    // Remove últimas N
-    p.installments=Math.max(1,p.installments-n);
-  }
-  recalcNubank();
-  closeModal();save();
-  setTimeout(()=>openNubank(_dnpFromMonth),150);
+function confirmDelCardParcelas(){
+  const p=(D.cardPurchases||[]).find(x=>x.id===_dcpId);if(!p)return;
+  const n=Math.max(1,parseInt(document.getElementById('dcp-n').value)||1);
+  const fromIdx=Math.max(0,monthDiff(p.startMonth,_dcpFromMonth));
+  if(_dcpDir==='proximas'){const keep=p.installments-Math.min(n,p.installments-fromIdx);p.installments=Math.max(fromIdx,keep);}
+  else{p.installments=Math.max(1,p.installments-n);}
+  recalcCard(_dcpCardId);closeModal();save();
+  setTimeout(()=>openCardFatura(_dcpCardId,_dcpFromMonth),150);
 }
-function delNuPurchase(id,fromMonth){
-  if(!confirm("Excluir esta compra e todas as parcelas futuras?"))return;
-  D.nuPurchases=D.nuPurchases.filter(x=>x.id!==id);
-  recalcNubank();
-  closeModal();
-  save();
-  setTimeout(()=>openNubank(fromMonth||curMonth),150);
+function delCardPurchase(cardId,id,fromMonth){
+  if(!confirm('Excluir esta compra e todas as parcelas?'))return;
+  D.cardPurchases=(D.cardPurchases||[]).filter(x=>x.id!==id);
+  recalcCard(cardId);closeModal();save();
+  setTimeout(()=>openCardFatura(cardId,fromMonth||curMonth),150);
 }
+// Compat aliases
+function getNubankTotal(month){const c=D.cards.find(c=>/nubank/i.test(c.name));return c?getCardTotal(c.id,month):0;}
+function recalcNubank(){const c=D.cards.find(c=>/nubank/i.test(c.name));if(c)recalcCard(c.id);}
+function openNubank(month){openCartoes(month);}
 
 /* ---------- FIREBASE SYNC (sem login — por código) ---------- */
 const fbConfig={apiKey:"AIzaSyCv14OWtQcnx9WC20Q3fzXOtJtDL1gE-Ok",authDomain:"painel-financeiro-e48e4.firebaseapp.com",projectId:"painel-financeiro-e48e4",storageBucket:"painel-financeiro-e48e4.firebasestorage.app",messagingSenderId:"1028502749170",appId:"1:1028502749170:web:0bdaa49aa5b1e2e82db56b"};
@@ -1125,9 +1069,7 @@ function showKpiInvestimentos(inv,pat){
 }
 function showKpiCartao(){
   const rows=D.cards.filter(c=>c.limit).map(card=>{
-    const isNu=/nubank/i.test(card.name);
-    // Soma todas as compras não pagas de todos os meses (limite é global, não mensal)
-    const allBills=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank)));
+    const allBills=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===card.id);
     const used=allBills.reduce((s,b)=>s+(+b.value),0);
     const pct=Math.round(used/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
@@ -1214,23 +1156,25 @@ function renderCharts(){
   const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // Card cartão mais utilizado (total comprometido = todas as compras de todos os meses)
-  let cardKpi=null;
-  if(D.cards.length){
-    const cardUsage=D.cards.map(card=>{
-      const isNu=/nubank/i.test(card.name);
-      const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===card.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
-      const pct2=card.limit?Math.round(used/card.limit*100):0;
-      return {name:card.name,used,limit:card.limit,pct:pct2};
-    }).sort((a,b)=>b.pct-a.pct)[0];
-    if(cardUsage&&cardUsage.limit){
-      const over=cardUsage.pct>100;
-      cardKpi={icon:"💳",label:"Cartão "+cardUsage.name,
-        val:cardUsage.pct+"%",
-        sub:over?`🚨 Excedido em ${fmt0(cardUsage.used-cardUsage.limit)}`:`${fmt0(cardUsage.used)} de ${fmt0(cardUsage.limit)}`,
-        color:over?"var(--red)":cardUsage.pct>80?"var(--amber)":"var(--green)"};
-    }
-  }
+  // KPI cards por cartão (um card por cartão com gasto > 0)
+  const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
+    const used=(D.cardPurchases||[]).filter(p=>p.cardId===c.id).reduce((s,cp)=>{
+      // Soma parcelas não pagas: simplificamos somando valor total ainda não quitado
+      const paid=D.bills.filter(b=>b.isFatura&&b.cardId===c.id&&b.paid).reduce((a,b)=>a+ +b.value,0);
+      return s;
+    },0);
+    // Usar bills de fatura não pagas como proxy do comprometido
+    const usedFatura=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+ +b.value,0);
+    const pct=c.limit?Math.round(usedFatura/c.limit*100):0;
+    if(usedFatura===0)return null;
+    const over=pct>100;
+    return {icon:"💳",label:"Cartão "+c.name,
+      val:pct+"%",
+      sub:over?`🚨 Excedido em ${fmt0(usedFatura-c.limit)}`:`${fmt0(usedFatura)} de ${fmt0(c.limit)}`,
+      color:over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
+      onclick:"showKpiCartao()"};
+  }).filter(Boolean);
+  const cardKpi=cardKpis[0]||null;
     const kpis=[
     {icon:"📈",label:"Patrimônio total",val:fmt0(pat),sub:`${fmt0(disp)} disponível + ${fmt0(inv)} investido`,color:"var(--accent)",onclick:`showKpiPatrimonio(${pat},${disp},${inv})`},
     {icon:"💰",label:`Economizado · ${mShort(insM)}`,val:incAtual>0?taxa+"%":"0%",
@@ -1242,7 +1186,7 @@ function renderCharts(){
       onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""}
     ,
     inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
-    cardKpi?{...cardKpi,onclick:"showKpiCartao()"}:null,
+    ...cardKpis,
     topCat?{icon:"🏷️",label:`Maior gasto · ${mShort(insM)}`,val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)",onclick:"showKpiMaiorGasto()"}:null,
     metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)",onclick:"showKpiMetas()"}:null,
   ].filter(Boolean);
@@ -1387,17 +1331,30 @@ function saveTx(id){
   const month=due.slice(0,7);
   if(id){Object.assign(D.bills.find(x=>x.id===id),{desc,due,value:val,month,cat,card,type:txType,paid,recurring:rec,recurrUntil});ensureMonth(month);curMonth=month;closeModal();save();return}
   if(!parcOn||txType==="income"){
-    D.bills.push({id:nid(),desc,due,value:val,month,cat,card,type:txType,paid,recurring:rec,recurrUntil});ensureMonth(month);
-    // Se receita recorrente com data final: cria entradas em todos os meses até recurrUntil
-    if(rec&&recurrUntil&&txType==="income"){
-      const day=due.split("-")[2]||"05";let mm=addM(month,1);
-      while(mm<=recurrUntil){D.bills.push({id:nid(),desc,due:mm+"-"+day,value:val,month:mm,cat,card:"",type:"income",paid:false,recurring:true,recurrUntil});ensureMonth(mm);mm=addM(mm,1);}
+    // Se despesa com cartão selecionado -> vai para fatura do cartão
+    if(txType==="expense"&&card){
+      if(!D.cardPurchases)D.cardPurchases=[];
+      D.cardPurchases.push({id:nid(),cardId:+card,desc,value:val,date:due,cat,installments:1,startMonth:due.slice(0,7)});
+      recalcCard(+card);ensureMonth(month);
+    }else{
+      D.bills.push({id:nid(),desc,due,value:val,month,cat,card,type:txType,paid,recurring:rec,recurrUntil});ensureMonth(month);
+      if(rec&&recurrUntil&&txType==="income"){
+        const day=due.split("-")[2]||"05";let mm=addM(month,1);
+        while(mm<=recurrUntil){D.bills.push({id:nid(),desc,due:mm+"-"+day,value:val,month:mm,cat,card:"",type:"income",paid:false,recurring:true,recurrUntil});ensureMonth(mm);mm=addM(mm,1);}
+      }
     }
   }else{
-    const N=Math.max(2,parseInt(document.getElementById("f-parc").value)||2);const gid="g"+nid();const day=due.split("-")[2];
-    const per=Math.round(val/N*100)/100;let alloc=0;
-    for(let i=0;i<N;i++){const mm=addM(month,i);const v=(i===N-1)?Math.round((val-alloc)*100)/100:per;alloc+=per;
-      D.bills.push({id:nid(),month:mm,desc:`${desc} (${i+1}/${N})`,due:mm+"-"+day,value:v,cat,card,type:"expense",paid:(i===0?paid:false),group:gid});ensureMonth(mm);}
+    const N=Math.max(2,parseInt(document.getElementById("f-parc").value)||2);const day=due.split("-")[2];
+    if(card){
+      // Parcelado com cartão -> fatura do cartão
+      if(!D.cardPurchases)D.cardPurchases=[];
+      D.cardPurchases.push({id:nid(),cardId:+card,desc,value:val,date:due,cat,installments:N,startMonth:due.slice(0,7)});
+      recalcCard(+card);ensureMonth(month);
+    }else{
+      const gid="g"+nid();const per=Math.round(val/N*100)/100;let alloc=0;
+      for(let i=0;i<N;i++){const mm=addM(month,i);const v=(i===N-1)?Math.round((val-alloc)*100)/100:per;alloc+=per;
+        D.bills.push({id:nid(),month:mm,desc:`${desc} (${i+1}/${N})`,due:mm+"-"+day,value:v,cat,card,type:"expense",paid:(i===0?paid:false),group:gid});ensureMonth(mm);}
+    }
   }
   curMonth=month;closeModal();save();
 }
@@ -1541,10 +1498,20 @@ if(!o.ativo)return;if(!o.ticker)o.ticker=o.ativo.split(" ")[0];
 if(id){Object.assign(D.invest.find(x=>x.id==id),o)}else D.invest.push({id:nid(),...o});closeModal();save();}
 function delInv(id){D.invest=D.invest.filter(x=>x.id!=id);closeModal();save()}
 
-function openCard(id){const c=id?D.cards.find(x=>x.id===id):{name:"",limit:""};
-  modal(`<h3>${id?"Editar cartão":"Novo cartão"}</h3><div class="fld"><label>Nome</label><input id="f-cn" value="${c.name}"></div><div class="fld"><label>Limite (R$)</label><input id="f-cl" type="number" inputmode="decimal" value="${c.limit}"></div><div class="flex"><button class="btn" onclick="saveCard(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCard(${id})">Excluir</button></div>`:""}`);}
-function saveCard(id){const name=document.getElementById("f-cn").value.trim(),limit=parseFloat(document.getElementById("f-cl").value)||0;if(!name)return;
-  if(id){const c=D.cards.find(x=>x.id===id);c.name=name;c.limit=limit}else D.cards.push({id:nid(),name,limit});closeModal();save();}
+function openCard(id){
+  const c=id?D.cards.find(x=>x.id===id):{name:'',limit:'',color:'#4f8cff',badge:''};
+  const colors=['#8b00d4','#4f8cff','#2fd27d','#ff5d6c','#ffb547','#a472ff','#43d4e0','#ff9f43'];
+  const colorBtns=colors.map(cl=>`<span onclick="document.getElementById('f-cc').value='${cl}';this.parentNode.querySelectorAll('span').forEach(s=>s.style.outline='none');this.style.outline='2px solid #fff'" style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${cl};cursor:pointer;margin-right:5px;outline:${(c.color||'#4f8cff')===cl?'2px solid #fff':'none'}"></span>`).join('');
+  modal(`<h3>${id?'Editar cartão':'Novo cartão'}</h3>`+
+    `<div class="fld"><label>Nome</label><input id="f-cn" value="${c.name}"></div>`+
+    `<div class="fld"><label>Limite (R$)</label><input id="f-cl" type="number" inputmode="decimal" value="${c.limit}"></div>`+
+    `<div class="fld"><label>Badge (ex: Nubank, Itaú, Inter)</label><input id="f-cb" value="${c.badge||c.name}" placeholder="Nome curto do cartão"></div>`+
+    `<div class="fld"><label>Cor</label><div style="margin-top:6px">${colorBtns}</div><input type="hidden" id="f-cc" value="${c.color||'#4f8cff'}"></div>`+
+    `<div class="flex"><button class="btn" onclick="saveCard(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`+
+    (id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCard(${id})">Excluir</button></div>`:'')
+  );
+}
+function saveCard(id){const name=document.getElementById('f-cn').value.trim(),limit=parseFloat(document.getElementById('f-cl').value)||0,badge=document.getElementById('f-cb').value.trim()||name,color=document.getElementById('f-cc').value||'#4f8cff';if(!name)return;if(id){const c=D.cards.find(x=>x.id===id);c.name=name;c.limit=limit;c.badge=badge;c.color=color;}else D.cards.push({id:nid(),name,limit,badge,color});closeModal();save();}
 function delCard(id){D.cards=D.cards.filter(x=>x.id!==id);closeModal();save()}
 
 function calcMetaProg(g){
@@ -1593,51 +1560,4 @@ function saveMeta(id){
   const name=document.getElementById("f-gn").value.trim();if(!name)return;
   if(_metaType==="debt"){
     const groups=[...document.querySelectorAll("#debt-groups-list .chk-row")].filter(r=>r.querySelector(".chk").classList.contains("on")).map(r=>r.dataset.gid);
-    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"debt",groups})}else D.metas.push({id:nid(),name,type:"debt",groups});
-  }else{
-    const target=parseFloat(document.getElementById("f-gt").value)||0,current=parseFloat(document.getElementById("f-gc").value)||0,monthlyGoal=parseFloat((document.getElementById("f-gm")||{}).value)||0;
-    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"savings",target,current,monthlyGoal})}else D.metas.push({id:nid(),name,type:"savings",target,current,monthlyGoal});
-  }
-  closeModal();save();
-}
-function delMeta(id){D.metas=D.metas.filter(x=>x.id!==id);closeModal();save()}
-
-function openCat(name){const c=name?D.cats.find(x=>x.name===name):{name:"",type:"expense"};
-  modal(`<h3>${name?"Editar categoria":"Nova categoria"}</h3><div class="fld"><label>Nome</label><input id="f-catn" value="${c.name}"></div><div class="fld"><label>Tipo</label><select id="f-catt"><option value="expense" ${c.type=="expense"?"selected":""}>Despesa</option><option value="income" ${c.type=="income"?"selected":""}>Receita</option></select></div><div class="flex"><button class="btn" onclick="saveCat('${name||""}')">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${name?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCat('${name}')">Excluir</button></div>`:""}`);}
-function saveCat(orig){const name=document.getElementById("f-catn").value.trim(),type=document.getElementById("f-catt").value;if(!name)return;
-  if(orig){const c=D.cats.find(x=>x.name===orig);c.name=name;c.type=type}else if(!D.cats.find(x=>x.name===name))D.cats.push({name,type});closeModal();save();}
-function delCat(name){D.cats=D.cats.filter(x=>x.name!==name);closeModal();save()}
-
-function saveCfg(){D.goal=parseFloat(document.getElementById("cfg-goal").value)||0;D.reserved=parseFloat(document.getElementById("cfg-reserved").value)||0;D.usd=parseFloat(document.getElementById("cfg-usd").value)||D.usd;save();alert("Salvo!")}
-function exportData(){const blob=new Blob([JSON.stringify(D,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="painel-financeiro-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()}
-function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{D=JSON.parse(r.result);migrate();D.updatedAt=Date.now();save();alert("Importado!")}catch(err){alert("Arquivo inválido.")}};r.readAsText(f)}
-function resetData(){if(confirm("Apagar todos os dados deste aparelho?")){D=structuredClone(DEFAULT);migrate();D.updatedAt=Date.now();saveLocal();if(fbUser)fbPush();render();alert("Dados apagados!")}}
-
-function setupFixas(){
-  const fixos=[
-    {desc:"Pic Itaú",val:0,day:"18",cat:"Contas",rec:true},
-    {desc:"Terreno",val:0,day:"20",cat:"Moradia",rec:true},
-    {desc:"99",val:0,day:"12",cat:"Transporte",rec:false}
-  ];
-  const base=todayMonth();
-  const meses=[];for(let i=0;i<6;i++)meses.push(addM(base,i));
-  if(!confirm(`Gerar contas fixas (Pic Itaú, Terreno, 99) nos próximos 6 meses a partir de ${mLabel(base)} com valor R$ 0? Você preenche os valores depois.`))return;
-  meses.forEach(m=>{
-    ensureMonth(m);
-    fixos.forEach(f=>{
-      if(!D.bills.find(b=>b.month===m&&b.desc===f.desc&&!b.isNubank)){
-        D.bills.push({id:nid(),month:m,desc:f.desc,due:m+"-"+f.day,value:f.val,paid:false,type:"expense",cat:f.cat,recurring:f.rec});
-      }
-    });
-  });
-  curMonth=base;save();alert("Contas fixas geradas! Edite cada uma para preencher o valor.");nav("bills");
-}
-
-render();updateNuLabel();
-fbInit();
-if(D.usdAuto)updateUSD(true);
-// Auto-atualizar cotações ao abrir e a cada 30 min
-if(D.brapiToken){setTimeout(function(){updatePrices(true)},3000);setInterval(function(){updatePrices(true)},30*60*1000);}
-</script>
-</body>
-</
+    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"debt",groups})}else D.metas.push({id
