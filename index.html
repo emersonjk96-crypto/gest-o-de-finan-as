@@ -1304,7 +1304,7 @@ function openTx(id,defType){
     </div>
     ${inc?`<div id="f-until-box" style="display:${b.recurring?"block":"none"};margin-bottom:10px"><div class="fld"><label>Repetir até</label><input id="f-until" type="month" value="${b.recurrUntil||""}"></div></div>`:""}
     <div class="flex"><button class="btn" onclick="saveTx(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>
-    ${id?`<div style="text-align:center;margin-top:14px">${b.group?`<button class="del" onclick="openDelParcelas('${b.group}','${b.month}')">Excluir parcelas</button> · `:""}${b.isNubank?"":(`<button class="del" onclick="delTx(${id})">Excluir</button>`)}</div>`:""}`);
+    ${id?`<div style="text-align:center;margin-top:14px">${b.group?`<button class="del" onclick="openDelParcelas('${b.group}','${b.month}')">Excluir parcelas</button> · `:""}${b.isNubank?"":(`<button class="del" onclick="${b.recurring?`delTxRecurring(${id})`:`delTx(${id})`}">Excluir</button>`)}</div>`:""}`);
   const fp=document.getElementById("f-paid");fp.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":""};
   if(inc){const fr=document.getElementById("f-rec");if(fr){fr.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":"";document.getElementById("f-until-box").style.display=this.classList.contains("on")?"block":"none"};}}
 }
@@ -1359,6 +1359,24 @@ function saveTx(id){
     }
   }
   curMonth=month;closeModal();save();
+}
+function delTxRecurring(id){
+  const b=D.bills.find(x=>x.id===id);
+  if(!b||!b.recurring){delTx(id);return;}
+  const siblings=D.bills.filter(x=>x.recurring&&x.desc===b.desc&&x.type===b.type&&x.recurrUntil===b.recurrUntil);
+  modal(`<h3>Excluir receita recorrente</h3>
+    <p class="note" style="margin-bottom:16px">"${b.desc}" tem ${siblings.length} entrada(s) recorrente(s).</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn ghost" onclick="delTx(${id})">Excluir s\u00f3 esta (${mLabel(b.month)})</button>
+      <button class="btn danger" onclick="delTxAllRecurring(${id})">Excluir todas as ${siblings.length} repeti\u00e7\u00f5es</button>
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+function delTxAllRecurring(id){
+  const b=D.bills.find(x=>x.id===id);
+  if(!b)return;
+  D.bills=D.bills.filter(x=>!(x.recurring&&x.desc===b.desc&&x.type===b.type&&x.recurrUntil===b.recurrUntil));
+  closeModal();save();
 }
 function delTx(id){D.bills=D.bills.filter(x=>x.id!==id);closeModal();save()}
 function delGroup(g){if(confirm("Excluir todas as parcelas dessa compra?")){D.bills=D.bills.filter(x=>x.group!==g);closeModal();save()}}
