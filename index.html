@@ -743,9 +743,11 @@ function render(){
   document.getElementById("h-prox").innerHTML=prox.length?prox.map(b=>{
     const overdue=b.due<today,dd=daysTo(b.due);
     let pill=overdue?'<span class="pill no">atrasada</span>':dd<=7?'<span class="pill soon">em '+dd+'d</span>':'<span class="pill no">'+brDate(b.due)+'</span>';
-    const nuTag=b.isNubank?'<span class="nu-badge" style="font-size:9px">Nu</span>':'';
-    const typeTag=b.card&&!b.isNubank?'<span style="font-size:10px;color:var(--accent);margin-left:4px">💳</span>':b.isNubank?'':'<span style="font-size:10px;color:var(--muted);margin-left:4px">📋</span>';
-    return `<div class="row"><div class="dot" style="background:${catColor(b.cat)}"></div><div class="name"><b>${b.desc}${nuTag}${typeTag}</b><small>${mShort(b.month)} · ${b.cat||""}</small></div><div class="amt">${fmt(b.value)}</div>${pill}</div>`;
+    const isFat=!!(b.isFatura&&b.cardId);
+    const fatCard=isFat?D.cards.find(x=>x.id===b.cardId):null;
+    const cardTag=isFat&&fatCard?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${fatCard.color}33;color:${fatCard.color};font-weight:700;margin-left:4px;vertical-align:middle">${fatCard.badge||fatCard.name}</span>`:'';
+    const dotColor=isFat&&fatCard?fatCard.color:catColor(b.cat);
+    return `<div class="row"><div class="dot" style="background:${dotColor}"></div><div class="name"><b>${b.desc}${cardTag}</b><small>${mShort(b.month)} · ${b.cat||""}</small></div><div class="amt">${fmt(b.value)}</div>${pill}</div>`;
   }).join(""):'<div class="empty">Nada a pagar 🎉</div>';
   savePatSnap();
   renderBills();renderAccounts();renderInvest();renderMore();if(typeof renderAuth==="function")renderAuth();
