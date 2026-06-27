@@ -769,13 +769,15 @@ function renderBills(){
   document.getElementById("b-summary").innerHTML=`<b>${mLabel(curMonth)}</b><br><span class="note">Despesas <span class="neg">${fmt(exp)}</span> · pago <span class="pos">${fmt(paid)}</span> · receitas <span class="pos">${fmt(inc)}</span></span>`;
   document.getElementById("b-list").innerHTML=list.length?list.map(b=>{
     const isInc=b.type==="income";
-    const isNu=!!b.isNubank;
-    const clickFn=isNu?`openNubank('${b.month}')`:(`openTx(${b.id})`);
-    const nuTag=isNu?'<span class="nu-badge" style="font-size:9px;vertical-align:middle;margin-left:4px">Nu</span>':'';
+    const isFat=!!(b.isFatura&&b.cardId);
+    const fatCard=isFat?D.cards.find(x=>x.id===b.cardId):null;
+    const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:(`openTx(${b.id})`);
+    const dotColor=isFat?(fatCard?fatCard.color:"#8b00d4"):(isInc?"var(--green)":catColor(b.cat));
+    const cardTag=isFat&&fatCard?`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${fatCard.color}33;color:${fatCard.color};font-weight:700;margin-left:4px;vertical-align:middle">${fatCard.badge||fatCard.name}</span>`:'';
     return `<div class="row">
       <div class="chk ${b.paid?'on':''}" onclick="togglePaid(${b.id})">${b.paid?"✓":""}</div>
-      <div class="dot" style="background:${isNu?"#8b00d4":(isInc?"var(--green)":catColor(b.cat))}"></div>
-      <div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${b.desc}${nuTag}</b><small>${b.due?"vence "+brDate(b.due):""} · ${isInc?"receita":(b.cat||"")}${isNu?" · toque para gerenciar compras":""}${(!isNu&&b.card)?" · "+(cardName(b.card)):""}</small></div>
+      <div class="dot" style="background:${dotColor}"></div>
+      <div class="name" onclick="${clickFn}" style="cursor:pointer"><b>${b.desc}${cardTag}</b><small>${b.due?"vence "+brDate(b.due):""} · ${isInc?"receita":(b.cat||"")}${isFat?" · toque para gerenciar compras":""}</small></div>
       <div class="amt ${isInc?"pos":""}" onclick="${clickFn}" style="cursor:pointer">${isInc?"+":""}${fmt(b.value)}</div>
     </div>`;
   }).join(""):'<div class="empty">Sem lançamentos. Use + Despesa / + Receita ou o botão +.</div>';
@@ -1002,7 +1004,7 @@ function renderInvest(){
 function renderMore(){
   document.getElementById("m-cards").innerHTML=D.cards.length?D.cards.map(c=>{
     const isNu=/nubank/i.test(c.name);
-    const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);
+    const used=D.bills.filter(b=>!b.paid&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank)||(b.isFatura&&b.cardId===c.id))).reduce((s,b)=>s+ +b.value,0);
     const over=c.limit&&used>c.limit;
     const pct=c.limit?Math.min(100,Math.round(used/c.limit*100)):0;
     const barColor=over?"var(--red)":pct>80?"var(--amber)":"var(--accent)";
