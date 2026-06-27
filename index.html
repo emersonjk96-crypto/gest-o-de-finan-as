@@ -1569,6 +1569,17 @@ function saveMeta(id){
   closeModal();save();
 }
 function delMeta(id){D.metas=D.metas.filter(x=>x.id!==id);closeModal();save();}
+
+/* ---------- STARTUP ---------- */
+(function(){
+  const p=new URLSearchParams(location.search);
+  const s=p.get("sync");
+  if(s&&s!==syncId){localStorage.setItem(SKSTORE,s);syncId=s;history.replaceState(null,"",location.pathname);}
+})();
+D.cards.forEach(c=>recalcCard(c.id));
+render();
+fbInit();
+updateUSD(true);
 </script>
 </body>
 </html>
