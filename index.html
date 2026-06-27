@@ -135,7 +135,7 @@ canvas{max-width:100%}
     <div style="display:flex;gap:8px;margin-bottom:6px">
       <button class="btn sm" style="flex:1" onclick="openTx(0,'expense')">+ Despesa</button>
       <button class="btn sm ghost" style="flex:1" onclick="openTx(0,'income')">+ Receita</button>
-      <button class="btn sm" style="flex:1;background:linear-gradient(135deg,#8b00d4,#6200ea)" onclick="openNubank(curMonth)">💳 Fatura Nu</button>
+      <button class="btn sm" id="nu-main-btn" style="flex:1;background:linear-gradient(135deg,#8b00d4,#6200ea);display:flex;align-items:center;justify-content:center;gap:6px" onclick="openNubank(curMonth)">💳 <span id="nu-btn-lbl">Fatura Nu</span><span style="font-size:9px;opacity:.65" onclick="event.stopPropagation();renameNuLabel()" title="Renomear">✏️</span></button>
     </div>
     <div id="b-list"></div>
   </div>
@@ -253,16 +253,19 @@ canvas{max-width:100%}
 const MESES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MESESL=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const KEY="painel_fin_v2", SKEY="painel_fin_sync";
-const CATCOLORS={"Moradia":"#4f8cff","Transporte":"#ffb547","Alimentação":"#2fd27d","Cartão":"#a472ff","Lazer":"#ff9f43","Saúde":"#43d4e0","Contas":"#8ea0bd","Outros":"#6b7a90","Salário":"#2fd27d","Extra":"#4f8cff"};
+const CATCOLORS={"Moradia":"#4f8cff","Transporte":"#ffb547","Alimentação":"#2fd27d","Cartão":"#a472ff","Lazer":"#ff9f43","Saúde":"#43d4e0","Contas":"#8ea0bd","Outros":"#6b7a90","Salário":"#2fd27d","Extra":"#4f8cff","Investimento":"#a472ff","Férias":"#ff9f43","13° Parcela 1":"#43d4e0","13° Parcela 2":"#43d4e0"};
 
 const DEFAULT={
-  goal:0,reserved:0,usd:5.03,usdAuto:true,brapiToken:"",updatedAt:0,
+  goal:0,reserved:0,usd:5.03,usdAuto:true,brapiToken:"",updatedAt:0,nuLabel:"Fatura Nu",
   accounts:[],bills:[],invest:[],months:[],cards:[],metas:[],nuPurchases:[],
   cats:[
     {name:"Moradia",type:"expense"},{name:"Transporte",type:"expense"},{name:"Alimentação",type:"expense"},
     {name:"Cartão",type:"expense"},{name:"Lazer",type:"expense"},{name:"Saúde",type:"expense"},
     {name:"Contas",type:"expense"},{name:"Outros",type:"expense"},
-    {name:"Salário",type:"income"},{name:"Extra",type:"income"}
+    {name:"Salário",type:"income"},{name:"Extra",type:"income"},
+    {name:"Investimento",type:"income"},{name:"Férias",type:"income"},
+    {name:"13° Parcela 1",type:"income"},{name:"13° Parcela 2",type:"income"},
+    {name:"Outros",type:"income"}
   ]
 };
 
@@ -278,8 +281,14 @@ function migrate(){
   if(D.brapiToken===undefined)D.brapiToken="";
   if(!Array.isArray(D.nuPurchases))D.nuPurchases=[];
   if(!Array.isArray(D.divHistory))D.divHistory=[];
+  if(!D.nuLabel)D.nuLabel="Fatura Nu";
   ["accounts","bills","invest","cards","metas"].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});
   if(!D.cats||!D.cats.length)D.cats=structuredClone(DEFAULT.cats);
+  // Garante categorias de receita novas
+  ["Investimento","Férias","13° Parcela 1","13° Parcela 2"].forEach(n=>{
+    if(!D.cats.find(c=>c.name===n&&c.type==="income"))D.cats.push({name:n,type:"income"});
+  });
+  if(!D.cats.find(c=>c.name==="Outros"&&c.type==="income"))D.cats.push({name:"Outros",type:"income"});
   D.bills.forEach(b=>{
     if(!b.type)b.type="expense";
     if(!b.cat)b.cat=catFor(b.desc);
@@ -299,7 +308,9 @@ function catFor(desc){const d=(desc||"").toLowerCase();if(d.includes("fatura")||
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(D))}
 function loadSync(){try{return JSON.parse(localStorage.getItem(SKEY))||{token:"",gistId:""}}catch(e){return{token:"",gistId:""}}}
 function saveSync(){localStorage.setItem(SKEY,JSON.stringify(sync))}
-function save(){D.updatedAt=Date.now();saveLocal();render();schedulePush()}
+function save(){D.updatedAt=Date.now();saveLocal();render();schedulePush();updateNuLabel();}
+function updateNuLabel(){const el=document.getElementById("nu-btn-lbl");if(el)el.textContent=D.nuLabel||"Fatura Nu";}
+function renameNuLabel(){const n=prompt("Nome do botão da fatura:",D.nuLabel||"Fatura Nu");if(n&&n.trim()){D.nuLabel=n.trim();save();}}
 function nid(){return Date.now()+Math.floor(Math.random()*100000)}
 function todayMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")}
 function fmt(n){return "R$ "+(+n||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -1313,41 +1324,75 @@ document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="
 function catOptions(type,sel){return D.cats.filter(c=>c.type===type).map(c=>`<option ${c.name===sel?"selected":""}>${c.name}</option>`).join("")}
 function cardOptions(sel){return `<option value="">— sem cartão —</option>`+D.cards.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${c.name}</option>`).join("")}
 
-let txType="expense",parcOn=false;
+let txType="expense",parcOn=false,_lastParcEdit="total";
 function openTx(id,defType){
   const b=id?D.bills.find(x=>x.id===id):{desc:"",due:curMonth+"-05",value:"",month:curMonth,paid:false,type:defType||"expense",cat:"",card:"",recurring:false};
   if(b&&b.isNubank){openNubank(b.month);return;}
-  txType=b.type||"expense";parcOn=false;
+  txType=b.type||defType||"expense";parcOn=false;_lastParcEdit="total";
   const inc=txType==="income";
-  modal(`<h3>${id?"Editar lançamento":"Novo lançamento"}</h3>
-    <div class="seg"><div id="seg-exp" class="${!inc?"on":""}" onclick="setTxType('expense',${id||0})">Despesa</div><div id="seg-inc" class="${inc?"on":""}" onclick="setTxType('income',${id||0})">Receita</div></div>
+  const catSel=b.cat||"";
+  const isOutros=catSel==="Outros";
+  modal(`<h3>${id?(inc?"Editar receita":"Editar despesa"):(inc?"Nova receita":"Nova despesa")}</h3>
     <div class="fld"><label>Descrição</label><input id="f-desc" value="${b.desc}"></div>
-    <div class="flex"><div class="fld"><label>${inc?"Recebimento":"Vencimento"}</label><input id="f-due" type="date" value="${b.due}"></div><div class="fld"><label>Valor total (R$)</label><input id="f-val" type="number" inputmode="decimal" value="${b.value}"></div></div>
-    <div class="fld"><label>Categoria</label><select id="f-cat">${catOptions(txType,b.cat)}</select></div>
+    <div class="flex">
+      <div class="fld"><label>${inc?"Recebimento":"Vencimento"}</label><input id="f-due" type="date" value="${b.due}"></div>
+      <div class="fld"><label>Valor${inc?" (R$)":" total (R$)"}</label><input id="f-val" type="number" inputmode="decimal" value="${b.value}" oninput="${!inc?"calcParc('total')":""}"></div>
+    </div>
+    <div class="fld"><label>Categoria</label><select id="f-cat" onchange="onCatChange(this.value)">${catOptions(txType,catSel)}</select></div>
+    <div class="fld" id="f-outros-box" style="display:${isOutros?"block":"none"}"><label>Nome da categoria</label><input id="f-outros" value="${isOutros?catSel:""}"></div>
     ${!inc?`<div class="fld"><label>Cartão (opcional)</label><select id="f-card">${cardOptions(b.card)}</select></div>`:""}
-    ${!id&&!inc?`<div class="fld"><label>Pagamento</label><div class="seg"><div id="pg-vista" class="on" onclick="setParc(false)">À vista</div><div id="pg-parc" onclick="setParc(true)">Parcelado</div></div><div id="parc-box" style="display:none"><label>Nº de parcelas</label><input id="f-parc" type="number" inputmode="numeric" value="2" min="2"><div class="note">Cria 1 parcela em cada mês a partir da data acima.</div></div></div>`:""}
-    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 4px"><div class="chk ${b.paid?"on":""}" id="f-paid">${b.paid?"✓":""}</div><span class="note">Já ${inc?"recebido":"pago"}</span><div style="flex:1"></div><div class="chk ${b.recurring?"on":""}" id="f-rec">${b.recurring?"✓":""}</div><span class="note">Recorrente</span></div>
-    <div id="f-until-box" style="display:none;margin-bottom:10px"><div class="fld"><label>Repetir até (opcional)</label><input id="f-until" type="month" value=""></div></div>
+    ${!id&&!inc?`<div class="fld"><label>Pagamento</label>
+      <div class="seg"><div id="pg-vista" class="on" onclick="setParc(false)">À vista</div><div id="pg-parc" onclick="setParc(true)">Parcelado</div></div>
+      <div id="parc-box" style="display:none;margin-top:8px">
+        <div class="flex">
+          <div class="fld"><label>Valor da parcela (R$)</label><input id="f-parc-val" type="number" inputmode="decimal" oninput="calcParc('parcela')"></div>
+          <div class="fld"><label>Nº de parcelas</label><input id="f-parc" type="number" inputmode="numeric" value="2" min="2" oninput="calcParc('n')"></div>
+        </div>
+        <div class="note" id="parc-info" style="margin-top:4px"></div>
+      </div>
+    </div>`:""}
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0 4px">
+      <div class="chk ${b.paid?"on":""}" id="f-paid">${b.paid?"✓":""}</div><span class="note">Já ${inc?"recebido":"pago"}</span>
+      <div style="flex:1"></div>
+      ${inc?`<div class="chk ${b.recurring?"on":""}" id="f-rec">${b.recurring?"✓":""}</div><span class="note">Recorrente</span>`:""}
+    </div>
+    ${inc?`<div id="f-until-box" style="display:${b.recurring?"block":"none"};margin-bottom:10px"><div class="fld"><label>Repetir até</label><input id="f-until" type="month" value="${b.recurrUntil||""}"></div></div>`:""}
     <div class="flex"><button class="btn" onclick="saveTx(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>
     ${id?`<div style="text-align:center;margin-top:14px">${b.group?`<button class="del" onclick="openDelParcelas('${b.group}','${b.month}')">Excluir parcelas</button> · `:""}${b.isNubank?"":(`<button class="del" onclick="delTx(${id})">Excluir</button>`)}</div>`:""}`);
   const fp=document.getElementById("f-paid");fp.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":""};
-  const fr=document.getElementById("f-rec");fr.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":"";document.getElementById("f-until-box").style.display=this.classList.contains("on")?"block":"none"};
-  const fu=document.getElementById("f-until");if(fu&&b.recurrUntil)fu.value=b.recurrUntil;document.getElementById("f-until-box").style.display=b.recurring?"block":"none";
+  if(inc){const fr=document.getElementById("f-rec");if(fr){fr.onclick=function(){this.classList.toggle("on");this.textContent=this.classList.contains("on")?"✓":"";document.getElementById("f-until-box").style.display=this.classList.contains("on")?"block":"none"};}}
 }
-function setTxType(t,id){txType=t;const b=id?D.bills.find(x=>x.id===id):null;if(b)b.type=t;
-  document.getElementById("seg-exp").className=t==="expense"?"on":"";document.getElementById("seg-inc").className=t==="income"?"on":"";
-  document.getElementById("f-cat").innerHTML=catOptions(t,b?b.cat:"");}
-function setParc(on){parcOn=on;document.getElementById("pg-vista").className=on?"":"on";document.getElementById("pg-parc").className=on?"on":"";document.getElementById("parc-box").style.display=on?"block":"none"}
+function onCatChange(v){const box=document.getElementById("f-outros-box");if(box)box.style.display=v==="Outros"?"block":"none";}
+function setParc(on){parcOn=on;document.getElementById("pg-vista").className=on?"":"on";document.getElementById("pg-parc").className=on?"on":"";document.getElementById("parc-box").style.display=on?"block":"none";if(on)calcParc("total");}
+function calcParc(src){
+  const fv=document.getElementById("f-val");const fpv=document.getElementById("f-parc-val");const fn=document.getElementById("f-parc");const info=document.getElementById("parc-info");
+  if(!fv||!fpv||!fn)return;
+  const N=Math.max(1,parseInt(fn.value)||1);
+  if(src==="total"){_lastParcEdit="total";const t=parseFloat(fv.value)||0;if(t&&N)fpv.value=(t/N).toFixed(2);}
+  else if(src==="parcela"){_lastParcEdit="parcela";const p=parseFloat(fpv.value)||0;if(p&&N)fv.value=(p*N).toFixed(2);}
+  else{if(_lastParcEdit==="parcela"){const p=parseFloat(fpv.value)||0;if(p&&N)fv.value=(p*N).toFixed(2);}else{const t=parseFloat(fv.value)||0;if(t&&N)fpv.value=(t/N).toFixed(2);}}
+  const total=parseFloat(fv.value)||0;const parc=parseFloat(fpv.value)||0;
+  if(info)info.textContent=total&&N?`Total: R$ ${total.toFixed(2)} em ${N}x de R$ ${parc.toFixed(2)}`:"";
+}
 function saveTx(id){
   const desc=document.getElementById("f-desc").value.trim();const due=document.getElementById("f-due").value;const val=parseFloat(document.getElementById("f-val").value)||0;
-  const cat=document.getElementById("f-cat").value;const cardEl=document.getElementById("f-card");const card=cardEl?(cardEl.value?+cardEl.value:""):"";
-  const paid=document.getElementById("f-paid").classList.contains("on");const rec=document.getElementById("f-rec").classList.contains("on");
+  let cat=document.getElementById("f-cat").value;
+  // Se categoria "Outros" e há texto personalizado, usa o texto (para income)
+  const outrosEl=document.getElementById("f-outros");if(cat==="Outros"&&outrosEl&&outrosEl.value.trim())cat=outrosEl.value.trim();
+  const cardEl=document.getElementById("f-card");const card=cardEl?(cardEl.value?+cardEl.value:""):"";
+  const paid=document.getElementById("f-paid").classList.contains("on");
+  const recEl=document.getElementById("f-rec");const rec=recEl?recEl.classList.contains("on"):false;
   const untilEl=document.getElementById("f-until");const recurrUntil=(rec&&untilEl&&untilEl.value)?untilEl.value:"";
   if(!desc||!due){alert("Preencha descrição e data.");return}
   const month=due.slice(0,7);
   if(id){Object.assign(D.bills.find(x=>x.id===id),{desc,due,value:val,month,cat,card,type:txType,paid,recurring:rec,recurrUntil});ensureMonth(month);curMonth=month;closeModal();save();return}
   if(!parcOn||txType==="income"){
     D.bills.push({id:nid(),desc,due,value:val,month,cat,card,type:txType,paid,recurring:rec,recurrUntil});ensureMonth(month);
+    // Se receita recorrente com data final: cria entradas em todos os meses até recurrUntil
+    if(rec&&recurrUntil&&txType==="income"){
+      const day=due.split("-")[2]||"05";let mm=addM(month,1);
+      while(mm<=recurrUntil){D.bills.push({id:nid(),desc,due:mm+"-"+day,value:val,month:mm,cat,card:"",type:"income",paid:false,recurring:true,recurrUntil});ensureMonth(mm);mm=addM(mm,1);}
+    }
   }else{
     const N=Math.max(2,parseInt(document.getElementById("f-parc").value)||2);const gid="g"+nid();const day=due.split("-")[2];
     const per=Math.round(val/N*100)/100;let alloc=0;
@@ -1588,7 +1633,7 @@ function setupFixas(){
   curMonth=base;save();alert("Contas fixas geradas! Edite cada uma para preencher o valor.");nav("bills");
 }
 
-render();
+render();updateNuLabel();
 fbInit();
 if(D.usdAuto)updateUSD(true);
 // Auto-atualizar cotações ao abrir e a cada 30 min
