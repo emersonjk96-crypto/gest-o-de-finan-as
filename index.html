@@ -1560,4 +1560,15 @@ function saveMeta(id){
   const name=document.getElementById("f-gn").value.trim();if(!name)return;
   if(_metaType==="debt"){
     const groups=[...document.querySelectorAll("#debt-groups-list .chk-row")].filter(r=>r.querySelector(".chk").classList.contains("on")).map(r=>r.dataset.gid);
-    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"debt",groups})}else D.metas.push({id
+    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"debt",groups})}else D.metas.push({id:nid(),name,type:"debt",groups});
+  }else{
+    const target=parseFloat(document.getElementById("f-gt").value)||0;
+    const current=parseFloat(document.getElementById("f-gc").value)||0;
+    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"savings",target,current})}else D.metas.push({id:nid(),name,type:"savings",target,current});
+  }
+  closeModal();save();
+}
+function delMeta(id){D.metas=D.metas.filter(x=>x.id!==id);closeModal();save();}
+</script>
+</body>
+</html>
