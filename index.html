@@ -305,7 +305,6 @@ canvas{max-width:100%}
   <div class="sec-title"><h2>📱 Acesso mobile</h2></div>
   <div class="card">
     <p class="note" style="margin-top:0">Abrir como app no celular: Chrome → ⋮ → "Adicionar à tela inicial". Os dados sincronizam automaticamente com o PC.</p>
-    <button class="btn ghost" style="margin-top:10px;width:100%;color:var(--red)" onclick="resetData()">Limpar tudo</button>
   </div>
 </div>
 
@@ -1357,7 +1356,7 @@ function renderCharts(){
       color:incAtual===0?"var(--muted)":taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)",
       onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""}
     ,
-    inv?{icon:"🏦",label:"Investimentos",val:fmt0(inv),sub:_apK?`${_rendPctK>=0?"+":""}${_rendPctK}% de rentabilidade`:`${fmt0(inv)} em ativos`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
+    inv?{icon:"🏦",label:"Investimentos",val:fmt0(inv),sub:`${fmt0(inv)} em ativos`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
     ...cardKpis,
     topCat?{icon:"🏷️",label:`Maior gasto · ${mShort(insM)}`,val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)",onclick:"showKpiMaiorGasto()"}:null,
     metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)",onclick:"showKpiMetas()"}:null,
@@ -1718,7 +1717,7 @@ function openCard(id){
     (id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCard(${id})">Excluir</button></div>`:'')
   );
 }
-function saveCard(id){const name=document.getElementById('f-cn').value.trim(),limit=parseFloat(document.getElementById('f-cl').value)||0,badge=document.getElementById('f-cb').value.trim()||name,color=document.getElementById('f-cc').value||'#4f8cff',closeDay=parseInt(document.getElementById('f-cd').value)||8,dueDay=parseInt(document.getElementById('f-dd').value)||15;if(!name)return;if(id){const c=D.cards.find(x=>x.id===id);c.name=name;c.limit=limit;c.badge=badge;c.color=color;c.closeDay=closeDay;c.dueDay=dueDay;}else D.cards.push({id:nid(),name,limit,badge,color,closeDay,dueDay});closeModal();save();}
+function saveCard(id){const name=document.getElementById('f-cn').value.trim(),limit=parseFloat(document.getElementById('f-cl').value)||0,badge=document.getElementById('f-cb').value.trim()||name,color=document.getElementById('f-cc').value||'#4f8cff',closeDay=parseInt(document.getElementById('f-cd').value)||8,dueDay=parseInt(document.getElementById('f-dd').value)||15;if(!name)return;if(id){const c=D.cards.find(x=>x.id===id);const closeDayChanged=c.closeDay!==closeDay;c.name=name;c.limit=limit;c.badge=badge;c.color=color;c.closeDay=closeDay;c.dueDay=dueDay;if(closeDayChanged&&D.kpiSnaps){Object.keys(D.kpiSnaps).forEach(k=>{if(k.startsWith(id+':'))delete D.kpiSnaps[k];});}}else D.cards.push({id:nid(),name,limit,badge,color,closeDay,dueDay});closeModal();save();}
 function delCard(id){D.cards=D.cards.filter(x=>x.id!==id);closeModal();save()}
 
 function calcMetaProg(g){
@@ -1828,15 +1827,6 @@ function authForgotPassword(){
 function authSignOut(){
   if(!confirm('Deseja sair da conta?'))return;
   firebase.auth().signOut();
-}
-function renderAuth(){
-  const b=document.getElementById('more-auth-block');
-  if(!b)return;
-  const user=firebase.apps.length?firebase.auth().currentUser:null;
-  const email=user?user.email:'';
-  b.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Conta conectada</div>
-    <div style="font-weight:600;margin-bottom:12px">${email}</div>
-    <button class="btn ghost" style="width:100%" onclick="authSignOut()">Sair da conta</button>`;
 }
 // ---------- STARTUP ----------
 migrate();
