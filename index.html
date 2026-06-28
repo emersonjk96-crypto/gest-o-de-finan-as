@@ -139,10 +139,24 @@ canvas{max-width:100%}
 </style>
 </head>
 <body>
-<div id="login-screen">
+<div id="landing-page">
+  <img class="lp-logo" src="/gest-o-de-finan-as/icon-512.png" alt="ESC Control">
+  <div class="lp-brand">ESC</div>
+  <div class="lp-brand-sub">CONTROL</div>
+  <div class="lp-tagline">Seu painel completo para organizar, planejar e evoluir suas finanças.</div>
+  <div class="lp-features">
+    <div class="lp-feature"><div class="lp-feature-icon">👛</div><div class="lp-feature-label">EXPENSE</div></div>
+    <div class="lp-feature"><div class="lp-feature-icon">🐷</div><div class="lp-feature-label">SAVINGS</div></div>
+    <div class="lp-feature"><div class="lp-feature-icon">🛡️</div><div class="lp-feature-label">CONTROL</div></div>
+  </div>
+  <button class="lp-cta" onclick="showLoginFromLanding()">Começar agora</button>
+  <div class="lp-already">Já tem conta? <span onclick="showLoginFromLanding()">Entrar</span></div>
+</div>
+
+<div id="login-screen" class="hidden">
   <img class="l-logo" src="/gest-o-de-finan-as/icon-512.png" alt="ESC Control">
-  <div class="l-title">ESC Control</div>
-  <div class="l-sub">Organize, planeje e evolua suas finanças.</div>
+  <div class="l-brand">ESC</div>
+  <div class="l-brand-sub">CONTROL</div>
   <div class="l-form">
     <div class="l-mode-title" id="l-mode-title">Entrar</div>
     <input id="l-name" type="text" placeholder="Seu nome" style="display:none">
@@ -152,7 +166,10 @@ canvas{max-width:100%}
     <div class="l-error" id="l-error"></div>
     <button class="l-btn" id="l-submit" onclick="authSubmit()">Entrar</button>
     <div class="l-toggle" id="l-toggle">Não tem conta? <span onclick="authToggleMode()">Criar conta</span></div>
-    <div style="text-align:center;margin-top:12px"><span style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="authForgotPassword()">Esqueci minha senha</span></div>
+    <div class="l-footer">
+      <span onclick="authForgotPassword()">Esqueci minha senha</span>
+      <span onclick="showLanding()">Sobre</span>
+    </div>
   </div>
 </div>
 <header>
