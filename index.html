@@ -546,8 +546,8 @@ function openNubank(month){openCartoes(month);}
 const fbConfig={apiKey:"AIzaSyCv14OWtQcnx9WC20Q3fzXOtJtDL1gE-Ok",authDomain:"painel-financeiro-e48e4.firebaseapp.com",projectId:"painel-financeiro-e48e4",storageBucket:"painel-financeiro-e48e4.firebasestorage.app",messagingSenderId:"1028502749170",appId:"1:1028502749170:web:0bdaa49aa5b1e2e82db56b"};
 const SKSTORE="painel_fin_syncid";
 const DEFAULT_SYNC_ID="9bbfef9b-57bd-4aa4-be3emqtzqv55";
-localStorage.setItem(SKSTORE,DEFAULT_SYNC_ID);
-let syncId=DEFAULT_SYNC_ID;
+if(!localStorage.getItem(SKSTORE))localStorage.setItem(SKSTORE,DEFAULT_SYNC_ID);
+let syncId=localStorage.getItem(SKSTORE)||DEFAULT_SYNC_ID;
 let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
 function fbInit(){
@@ -581,20 +581,37 @@ function applySyncId(){
   if(!confirm("Conectar a este código? Os dados locais serão substituídos pelos dados sincronizados."))return;
   localStorage.setItem(SKSTORE,v);syncId=v;fbListen();renderAuth();
 }
+function newAccount(){
+  if(!confirm("Criar uma conta nova apaga todos os dados locais e gera um novo ID. Continuar?"))return;
+  localStorage.clear();
+  const newId=crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+Math.random().toString(36).slice(2));
+  localStorage.setItem(SKSTORE,newId);
+  syncId=newId;
+  D=structuredClone(DEFAULT);migrate();saveLocal();
+  if(fbUnsub){fbUnsub();fbUnsub=null;}
+  fbListen();render();
+  alert("Nova conta criada! Agora você tem um ID próprio.");
+}
 function renderAuth(){
   const b=document.getElementById("acc-box");if(!b)return;
   const short=syncId.slice(0,8)+"…";
   b.innerHTML=`
     <button class="btn" style="width:100%;margin-bottom:12px;font-size:15px" onclick="copySyncId()">📲 Compartilhar com celular</button>
     <p class="note" style="margin:0 0 14px">Clique acima no computador → link copiado → abra no celular → dados sincronizam sozinhos.</p>
+    <div style="margin-bottom:12px;padding:10px;background:var(--card2);border-radius:10px;font-size:12px">
+      <div style="color:var(--muted);margin-bottom:4px">Seu ID de sincronização:</div>
+      <div style="font-family:monospace;word-break:break-all;color:var(--accent)">${syncId}</div>
+    </div>
     <details style="font-size:12px;color:var(--muted)">
-      <summary style="cursor:pointer;margin-bottom:6px">Avançado: inserir código manualmente</summary>
+      <summary style="cursor:pointer;margin-bottom:6px">Conectar a outra conta</summary>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="sync-input" placeholder="Cole o código de sincronização" style="flex:1;font-size:11px">
+        <input id="sync-input" placeholder="Cole o código ou link" style="flex:1;font-size:11px">
         <button class="btn sm" onclick="applySyncId()">Conectar</button>
       </div>
-      <div style="margin-top:8px;font-size:11px;font-family:monospace;color:var(--muted);word-break:break-all">${syncId}</div>
-    </details>`;
+    </details>
+    <div style="margin-top:12px;text-align:center">
+      <button class="del" onclick="newAccount()">Criar conta nova (limpa tudo)</button>
+    </div>`;
 }
 
 /* ---------- COTAÇÕES ---------- */
