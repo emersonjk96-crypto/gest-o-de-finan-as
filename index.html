@@ -289,7 +289,7 @@ canvas{max-width:100%}
   <div class="card" id="m-cards"></div>
   <div class="sec-title"><h2>🎯 Metas</h2><button class="btn sm" onclick="openMeta()">+ Meta</button></div>
   <div class="card" id="m-metas"></div>
-  <div class="sec-title"><h2>🏷️ Categorias</h2><button class="btn sm" onclick="openCat()">+ Categoria</button></div>
+  <div class="sec-title"><h2>🏷️ Categorias</h2><div style="display:flex;gap:6px"><button class="btn sm ghost" id="cats-toggle-btn" onclick="toggleCats()">▲ Ocultar</button><button class="btn sm" onclick="openCat()">+ Categoria</button></div></div>
   <div class="card" id="m-cats"></div>
 
   <div class="sec-title"><h2>📈 Cotações</h2></div>
@@ -1111,6 +1111,15 @@ function renderInvest(){
     return html;
   }).join("");
   document.getElementById("i-list").innerHTML=instHtml||'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
+}
+
+function toggleCats(){
+  const el=document.getElementById("m-cats");
+  const btn=document.getElementById("cats-toggle-btn");
+  if(!el||!btn)return;
+  const hidden=el.style.display==="none";
+  el.style.display=hidden?"":"none";
+  btn.textContent=hidden?"▲ Ocultar":"▼ Mostrar";
 }
 function renderMore(){
   document.getElementById("m-cards").innerHTML=D.cards.length?D.cards.map(c=>{
