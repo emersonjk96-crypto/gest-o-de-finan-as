@@ -372,6 +372,7 @@ function migrate(){
     if(!c.dueDay)c.dueDay=15;
   });
   if(!Array.isArray(D.divHistory))D.divHistory=[];
+  if(!D.kpiSnaps)D.kpiSnaps={};
   if(!D.nuLabel)D.nuLabel="Fatura Nu";
   ["accounts","bills","invest","cards","metas"].forEach(k=>{if(!Array.isArray(D[k]))D[k]=[]});
   if(!D.cats||!D.cats.length)D.cats=structuredClone(DEFAULT.cats);
@@ -812,7 +813,7 @@ function nav(p){
   document.querySelectorAll(".page").forEach(e=>e.classList.remove("active"));
   document.getElementById("p-"+p).classList.add("active");
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.p===p));
-  window.scrollTo(0,0); if(p==="charts")renderCharts();
+  window.scrollTo(0,0); if(p==="charts")renderCharts(); if(p==="home"){curMonth=todayMonth();}
 }
 function accBRL(a){return a.moeda==="USD"?Math.round((+a.value||0)*D.usd*100)/100:(+a.value||0)}
 function totalAccounts(){return D.accounts.filter(a=>!a.isInvest).reduce((s,a)=>s+accBRL(a),0)}
@@ -828,7 +829,7 @@ function render(){
   const falta=exp-pagoExp;
   const totInv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
   const patrimonio=tot+totInv;
-  document.getElementById("sub").textContent=mLabel(realM)+" · "+new Date().toLocaleDateString("pt-BR");
+  document.getElementById("sub").textContent=new Date().toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"});
   document.getElementById("h-patrimonio").textContent=fmt0(patrimonio);
   document.getElementById("h-pat-disp").textContent=fmt0(tot);
   document.getElementById("h-pat-inv").textContent=fmt0(totInv);
@@ -1314,9 +1315,28 @@ function renderCharts(){
   // Fechado = hoje já passou o closeDay do mês visualizado → trava
   // Aberto  = ainda não chegou o closeDay → live
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
-    // Usa o valor da fatura do mês visualizado (paga ou não) — imune a pagamentos de outros meses
-    const faturaDoMes=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);
-    const totalUsedKpi=faturaDoMes?(+faturaDoMes.value):0;
+    const closeDay=+(c.closeDay||8);
+    const [insY,insMonthN]=insM.split('-').map(Number);
+    const isClosed=new Date()>=new Date(insY,insMonthN-1,closeDay);
+    let totalUsedKpi;
+    const snapKey=c.id+':'+insM;
+    if(isClosed&&D.kpiSnaps&&D.kpiSnaps[snapKey]!=null){
+      // Mês fechado com snapshot salvo → valor congelado
+      totalUsedKpi=D.kpiSnaps[snapKey];
+    } else {
+      // Mês aberto ou sem snapshot → fórmula original
+      const unpaid=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
+      const paidThisMonth=isClosed
+        ?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0)
+        :0;
+      totalUsedKpi=unpaid+paidThisMonth;
+      // Se mês fechado e não havia snap, salvar agora
+      if(isClosed&&totalUsedKpi>0){
+        if(!D.kpiSnaps)D.kpiSnaps={};
+        D.kpiSnaps[snapKey]=totalUsedKpi;
+        schedulePush();
+      }
+    }
     if(totalUsedKpi===0)return null;
     const pct=Math.round(totalUsedKpi/c.limit*100);
     const over=pct>100;
@@ -1410,6 +1430,21 @@ function togglePaid(id){
   if(c){
     const sign=b.type==="income"?1:-1;
     c.value=Math.round((c.value+(b.paid?sign:-sign)*(+b.value))*100)/100;
+  }
+  // Snapshot KPI: salvar valor do cartão quando fatura de mês fechado é alterada
+  if(b.isFatura&&b.cardId){
+    const card=D.cards.find(x=>x.id===b.cardId);
+    if(card&&card.limit){
+      const closeDay=+(card.closeDay||8);
+      const [mY,mN]=b.month.split('-').map(Number);
+      if(new Date()>=new Date(mY,mN-1,closeDay)){
+        if(!D.kpiSnaps)D.kpiSnaps={};
+        const key=card.id+':'+b.month;
+        const unpaid=D.bills.filter(x=>!x.paid&&x.isFatura&&x.cardId===card.id).reduce((s,x)=>s+(+x.value),0);
+        const paidM=D.bills.filter(x=>x.paid&&x.isFatura&&x.cardId===card.id&&x.month===b.month).reduce((s,x)=>s+(+x.value),0);
+        D.kpiSnaps[key]=unpaid+paidM;
+      }
+    }
   }
   save();
 }
