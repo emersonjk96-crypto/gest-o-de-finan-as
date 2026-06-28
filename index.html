@@ -1282,12 +1282,15 @@ function renderCharts(){
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
   // KPI cards por cartão
-  // Mês passado: total em aberto + faturas daquele mês já pagas (trava o histórico)
-  // Mês atual:   só total em aberto (live)
-  const _today2=todayMonth();
+  // Fechado = hoje já passou o closeDay do mês visualizado → trava
+  // Aberto  = ainda não chegou o closeDay → live
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
+    const closeDay=+(c.closeDay||8);
+    const [insY,insMonthN]=insM.split('-').map(Number);
+    const closeDate=new Date(insY,insMonthN-1,closeDay);
+    const isClosed=new Date()>=closeDate;
     const unpaid=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
-    const paidThisMonth=insM<_today2
+    const paidThisMonth=isClosed
       ?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0)
       :0;
     const totalUsedKpi=unpaid+paidThisMonth;
