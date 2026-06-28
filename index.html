@@ -133,6 +133,7 @@ canvas{max-width:100%}
     <div class="l-error" id="l-error"></div>
     <button class="l-btn" id="l-submit" onclick="authSubmit()">Entrar</button>
     <div class="l-toggle" id="l-toggle">Não tem conta? <span onclick="authToggleMode()">Criar conta</span></div>
+    <div style="text-align:center;margin-top:12px"><span style="font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="authForgotPassword()">Esqueci minha senha</span></div>
   </div>
 </div>
 <header>
@@ -1714,6 +1715,13 @@ function authSubmit(){
     firebase.auth().signInWithEmailAndPassword(email,pass)
       .catch(e=>{_setAuthError(_friendlyAuthError(e.code));_setAuthLoading(false);});
   }
+}
+function authForgotPassword(){
+  const email=document.getElementById('l-email').value.trim();
+  if(!email){_setAuthError('Digite seu e-mail acima primeiro.');return;}
+  firebase.auth().sendPasswordResetEmail(email)
+    .then(()=>{ _setAuthError(''); alert('Link de redefinição enviado para '+email+'. Verifique sua caixa de entrada.'); })
+    .catch(e=>_setAuthError(_friendlyAuthError(e.code)));
 }
 function authSignOut(){
   if(!confirm('Sair da conta?'))return;
