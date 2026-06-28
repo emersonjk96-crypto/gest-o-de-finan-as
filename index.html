@@ -1205,9 +1205,8 @@ function showKpiCartao(){
         <span style="color:var(--muted)">Disponível</span>
         <span style="font-weight:600">${dispLabel}</span>
       </div>
-      <div style="background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.7">
-        <div style="font-weight:600;color:var(--txt);margin-bottom:4px">Como funciona</div>
-        O limite comprometido é a soma de todas as faturas em aberto. Ao pagar uma fatura, o valor é liberado e o próximo mês começa com mais limite disponível. Cada mês fecha no dia ${closeDay} e vence no dia ${dueDay}. Compras feitas após o dia ${closeDay} entram na fatura do mês seguinte.
+      <div style="background:var(--bg);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--muted)">
+        Soma de todas as faturas em aberto. Fecha dia ${closeDay}, vence dia ${dueDay}.
       </div>
     </div>`;
   }).join("")||'<div class="note">Nenhum cartão com limite cadastrado.</div>';
@@ -1282,18 +1281,16 @@ function renderCharts(){
   const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // KPI cards por cartão — fatura do mês visualizado (trava por mês no histórico)
+  // KPI cards por cartão — total acumulado em aberto (igual ao Mais)
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
-    const fatMes=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);
-    if(!fatMes||!+fatMes.value)return null;
-    const usedMes=+fatMes.value;
-    const pct=Math.round(usedMes/c.limit*100);
+    const totalUsedKpi=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
+    if(totalUsedKpi===0)return null;
+    const pct=Math.round(totalUsedKpi/c.limit*100);
     const over=pct>100;
-    const paidSuffix=fatMes.paid?" · ✅ Paga":"";
     return {icon:"💳",label:"Cartão "+c.name,
       val:pct+"%",
-      sub:(over?`🚨 Excedido em ${fmt0(usedMes-c.limit)}`:`${fmt0(usedMes)} de ${fmt0(c.limit)}`)+paidSuffix,
-      color:fatMes.paid?"var(--muted)":over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
+      sub:over?`🚨 Excedido em ${fmt0(totalUsedKpi-c.limit)}`:`${fmt0(totalUsedKpi)} de ${fmt0(c.limit)}`,
+      color:over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
       onclick:"showKpiCartao()"};
   }).filter(Boolean);
   const cardKpi=cardKpis[0]||null;
