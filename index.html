@@ -457,6 +457,8 @@ function recalcCard(cardId){
       else{const dd=String(card&&card.dueDay?card.dueDay:15).padStart(2,'0');D.bills.push({id:nid(),month:m,desc:'Fatura '+cname,due:m+'-'+dd,value:total,paid:false,type:'expense',cat:'Cartão',isFatura:true,cardId:cardId,isNubank:/nubank/i.test(cname)});}
     }else if(ex){
       if(m>todayMonth())D.bills=D.bills.filter(b=>!(b.isFatura&&b.cardId===cardId&&b.month===m));
+      // Apagar snap órfão quando fatura é zerada/removida
+      if(D.kpiSnaps)delete D.kpiSnaps[cardId+':'+m];
     }
   });
 }
