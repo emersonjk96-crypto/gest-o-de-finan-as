@@ -1287,16 +1287,18 @@ function renderCharts(){
   const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // KPI cards por cartão — total acumulado de faturas em aberto (mesmo cálculo do Mais)
+  // KPI cards por cartão — fatura do mês visualizado (trava por mês no histórico)
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
-    const totalUsed=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
-    if(totalUsed===0)return null;
-    const pct=Math.round(totalUsed/c.limit*100);
+    const fatMes=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);
+    if(!fatMes||!+fatMes.value)return null;
+    const usedMes=+fatMes.value;
+    const pct=Math.round(usedMes/c.limit*100);
     const over=pct>100;
+    const paidSuffix=fatMes.paid?" · ✅ Paga":"";
     return {icon:"💳",label:"Cartão "+c.name,
       val:pct+"%",
-      sub:over?`🚨 Excedido em ${fmt0(totalUsed-c.limit)}`:`${fmt0(totalUsed)} de ${fmt0(c.limit)}`,
-      color:over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
+      sub:(over?`🚨 Excedido em ${fmt0(usedMes-c.limit)}`:`${fmt0(usedMes)} de ${fmt0(c.limit)}`)+paidSuffix,
+      color:fatMes.paid?"var(--muted)":over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
       onclick:"showKpiCartao()"};
   }).filter(Boolean);
   const cardKpi=cardKpis[0]||null;
