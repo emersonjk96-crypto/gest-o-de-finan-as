@@ -1206,7 +1206,8 @@ function showKpiCartao(){
   const insM=_insMonth||todayMonth();
   const rows=D.cards.filter(c=>c.limit).map(card=>{
     // Total acumulado em aberto (mesmo cálculo do Mais e do KPI card)
-    const totalUsed=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===card.id).reduce((s,b)=>s+(+b.value),0);
+    const fatM=D.bills.find(b=>b.isFatura&&b.cardId===card.id&&b.month===insM);
+    const totalUsed=fatM?(+fatM.value):0;
     const pct=Math.round(totalUsed/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
     const statusLabel=pct>100?"🚨 Excedido em "+fmt0(totalUsed-card.limit):pct>80?"⚠️ Atenção":"✅ OK";
@@ -1295,7 +1296,11 @@ function renderCharts(){
   const totalExp=catEntries.reduce((s,[,v])=>s+v,0);
   // ---- KPIs ----
   const disp=totalAccounts();
-  const inv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
+  // inv = D.invest (ativos) + contas isRF — não depende de saldo da carteira
+  const _rfValK=D.accounts.filter(a=>a.isRF).reduce((s,a)=>s+accBRL(a),0);
+  let _apK=0,_atK=0;D.invest.forEach(it=>{const b=brlOf(it);_apK+=b.ap;_atK+=b.at;});
+  const inv=_rfValK+_atK;
+  const _rendK=_atK-_apK,_rendPctK=_apK?Math.round(_rendK/_apK*100):0;
   const pat=disp+inv;
   const expAtual=sumExp(insM),incAtual=sumInc(insM);
   const taxa=incAtual?Math.round((incAtual-expAtual)/incAtual*100):0;
@@ -1309,15 +1314,9 @@ function renderCharts(){
   // Fechado = hoje já passou o closeDay do mês visualizado → trava
   // Aberto  = ainda não chegou o closeDay → live
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
-    const closeDay=+(c.closeDay||8);
-    const [insY,insMonthN]=insM.split('-').map(Number);
-    const closeDate=new Date(insY,insMonthN-1,closeDay);
-    const isClosed=new Date()>=closeDate;
-    const unpaid=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
-    const paidThisMonth=isClosed
-      ?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0)
-      :0;
-    const totalUsedKpi=unpaid+paidThisMonth;
+    // Usa o valor da fatura do mês visualizado (paga ou não) — imune a pagamentos de outros meses
+    const faturaDoMes=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);
+    const totalUsedKpi=faturaDoMes?(+faturaDoMes.value):0;
     if(totalUsedKpi===0)return null;
     const pct=Math.round(totalUsedKpi/c.limit*100);
     const over=pct>100;
@@ -1338,14 +1337,14 @@ function renderCharts(){
       color:incAtual===0?"var(--muted)":taxa>=20?"var(--green)":taxa>0?"var(--amber)":"var(--red)",
       onclick:incAtual>0?`showEconomiaMes(${incAtual},${expAtual},${taxa})`:""}
     ,
-    inv?{icon:"🏦",label:"Investimentos",val:Math.round(inv/pat*100)+"%",sub:`${fmt0(inv)} do patrimônio total`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
+    inv?{icon:"🏦",label:"Investimentos",val:fmt0(inv),sub:_apK?`${_rendPctK>=0?"+":""}${_rendPctK}% de rentabilidade`:`${fmt0(inv)} em ativos`,color:"var(--accent)",onclick:`showKpiInvestimentos(${inv},${pat})`}:null,
     ...cardKpis,
     topCat?{icon:"🏷️",label:`Maior gasto · ${mShort(insM)}`,val:fmt0(topCat[1]),sub:`${topCat[0]} · ${totalExp?Math.round(topCat[1]/totalExp*100):0}% das despesas`,color:"var(--red)",onclick:"showKpiMaiorGasto()"}:null,
     metaFalta!==null?{icon:"🎯",label:"Faltam p/ metas",val:fmt0(metaFalta),sub:"soma do que falta em todas as metas",color:"var(--purple)",onclick:"showKpiMetas()"}:null,
   ].filter(Boolean);
   // ---- Alertas inteligentes ----
   const alertas=[];
-  D.cards.forEach(c=>{if(c.limit){const closeDay2=+(c.closeDay||8);const [insY2,insMonthN2]=insM.split('-').map(Number);const closeDate2=new Date(insY2,insMonthN2-1,closeDay2);const isClosed2=new Date()>=closeDate2;const unpaid2=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);const paid2=isClosed2?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0):0;const used2=unpaid2+paid2;const p2=Math.round(used2/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used2)}/${fmt(c.limit)})`});}});
+  D.cards.forEach(c=>{if(c.limit){const fatAlerta=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);const used2=fatAlerta?(+fatAlerta.value):0;const p2=Math.round(used2/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used2)}/${fmt(c.limit)})`});}});
   if(diffPct!==null&&diffPct>20)alertas.push({t:"warn",m:`🔥 Gastos ${diffPct}% acima do mês anterior (${fmt(expAtual)} vs ${fmt(prevExp)})`});
   if(diffPct!==null&&diffPct<=-10)alertas.push({t:"ok",m:`✅ Gastos ${Math.abs(diffPct)}% menores que o mês anterior. Ótimo!`});
   if(incAtual>0&&taxa<0)alertas.push({t:"danger",m:`🚨 Despesas superaram a renda em ${fmt(expAtual-incAtual)} este mês.`});else if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês. Meta recomendada: 20%`});
