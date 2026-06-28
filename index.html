@@ -293,6 +293,8 @@ function migrate(){
   D.cards.forEach(c=>{
     if(!c.color)c.color=/nubank/i.test(c.name)?'#8b00d4':'#4f8cff';
     if(!c.badge)c.badge=c.name;
+    if(!c.closeDay)c.closeDay=8;
+    if(!c.dueDay)c.dueDay=15;
   });
   if(!Array.isArray(D.divHistory))D.divHistory=[];
   if(!D.nuLabel)D.nuLabel="Fatura Nu";
@@ -340,14 +342,16 @@ function catColor(n){return CATCOLORS[n]||"#6b7a90"}
 function ensureMonth(m){if(!D.months.includes(m)){D.months.push(m);D.months.sort()}}
 
 /* ---------- NUBANK FATURA ---------- */
-// Fechamento dia 8, vencimento dia 15
-// Compras a partir do dia 8 entram na fatura do próximo mês
-function nuStartMonth(dateStr){
+// Fechamento e vencimento configuráveis por cartão (padrão: fechamento 8, vencimento 15)
+function cardStartMonth(cardId,dateStr){
+  const c=D.cards.find(x=>x.id===cardId);
+  const closeDay=c&&c.closeDay?+c.closeDay:8;
   const parts=dateStr.split("-");
   const y=+parts[0],m=+parts[1],d=+parts[2];
-  if(d>=8)return addM(y+"-"+String(m).padStart(2,"0"),1);
+  if(d>=closeDay)return addM(y+"-"+String(m).padStart(2,"0"),1);
   return y+"-"+String(m).padStart(2,"0");
 }
+function nuStartMonth(dateStr){return cardStartMonth(null,dateStr);}
 
 function getCardTotal(cardId,month){
   return (D.cardPurchases||[]).filter(p=>p.cardId===cardId).reduce((sum,p)=>{
@@ -375,7 +379,7 @@ function recalcCard(cardId){
     if(total>0){
       ensureMonth(m);
       if(ex){ex.value=total;}
-      else{D.bills.push({id:nid(),month:m,desc:'Fatura '+cname,due:m+'-15',value:total,paid:false,type:'expense',cat:'Cartão',isFatura:true,cardId:cardId,isNubank:/nubank/i.test(cname)});}
+      else{const dd=String(card&&card.dueDay?card.dueDay:15).padStart(2,'0');D.bills.push({id:nid(),month:m,desc:'Fatura '+cname,due:m+'-'+dd,value:total,paid:false,type:'expense',cat:'Cartão',isFatura:true,cardId:cardId,isNubank:/nubank/i.test(cname)});}
     }else if(ex){
       if(m>todayMonth())D.bills=D.bills.filter(b=>!(b.isFatura&&b.cardId===cardId&&b.month===m));
     }
@@ -487,7 +491,7 @@ function saveCardPurchase(cardId,id,fromMonth){
   const cat=document.getElementById('cp-cat').value;
   const installments=Math.max(1,parseInt(document.getElementById('cp-inst').value)||1);
   if(!desc||!value||!date){alert('Preencha descrição, valor e data.');return;}
-  const startMonth=nuStartMonth(date);
+  const startMonth=cardStartMonth(cardId,date);
   if(id){const p=(D.cardPurchases||[]).find(x=>x.id===id);Object.assign(p,{desc,value,date,cat,installments,startMonth});}
   else{if(!D.cardPurchases)D.cardPurchases=[];D.cardPurchases.push({id:nid(),cardId,desc,value,date,cat,installments,startMonth});}
   recalcCard(cardId);
@@ -1544,13 +1548,15 @@ function openCard(id){
   modal(`<h3>${id?'Editar cartão':'Novo cartão'}</h3>`+
     `<div class="fld"><label>Nome</label><input id="f-cn" value="${c.name}"></div>`+
     `<div class="fld"><label>Limite (R$)</label><input id="f-cl" type="number" inputmode="decimal" value="${c.limit}"></div>`+
+    `<div class="fld"><label>Dia de fechamento</label><input id="f-cd" type="number" inputmode="numeric" min="1" max="28" placeholder="ex: 8" value="${c.closeDay||8}"></div>`+
+    `<div class="fld"><label>Dia de vencimento</label><input id="f-dd" type="number" inputmode="numeric" min="1" max="31" placeholder="ex: 15" value="${c.dueDay||15}"></div>`+
     `<div class="fld"><label>Badge (ex: Nubank, Itaú, Inter)</label><input id="f-cb" value="${c.badge||c.name}" placeholder="Nome curto do cartão"></div>`+
     `<div class="fld"><label>Cor</label><div style="margin-top:6px">${colorBtns}</div><input type="hidden" id="f-cc" value="${c.color||'#4f8cff'}"></div>`+
     `<div class="flex"><button class="btn" onclick="saveCard(${id||0})">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`+
     (id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delCard(${id})">Excluir</button></div>`:'')
   );
 }
-function saveCard(id){const name=document.getElementById('f-cn').value.trim(),limit=parseFloat(document.getElementById('f-cl').value)||0,badge=document.getElementById('f-cb').value.trim()||name,color=document.getElementById('f-cc').value||'#4f8cff';if(!name)return;if(id){const c=D.cards.find(x=>x.id===id);c.name=name;c.limit=limit;c.badge=badge;c.color=color;}else D.cards.push({id:nid(),name,limit,badge,color});closeModal();save();}
+function saveCard(id){const name=document.getElementById('f-cn').value.trim(),limit=parseFloat(document.getElementById('f-cl').value)||0,badge=document.getElementById('f-cb').value.trim()||name,color=document.getElementById('f-cc').value||'#4f8cff',closeDay=parseInt(document.getElementById('f-cd').value)||8,dueDay=parseInt(document.getElementById('f-dd').value)||15;if(!name)return;if(id){const c=D.cards.find(x=>x.id===id);c.name=name;c.limit=limit;c.badge=badge;c.color=color;c.closeDay=closeDay;c.dueDay=dueDay;}else D.cards.push({id:nid(),name,limit,badge,color,closeDay,dueDay});closeModal();save();}
 function delCard(id){D.cards=D.cards.filter(x=>x.id!==id);closeModal();save()}
 
 function calcMetaProg(g){
