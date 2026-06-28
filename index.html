@@ -102,74 +102,63 @@ canvas{max-width:100%}
 #welcome-screen .w-connect .w-btn{margin-bottom:6px}
 #welcome-screen .w-back{font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;text-decoration:underline}
 
-/* ---------- LANDING PAGE ---------- */
-#landing-page{position:fixed;inset:0;background:#0b1220;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;overflow-y:auto}
-#landing-page.hidden{display:none}
-.lp-logo{width:100px;height:100px;border-radius:24px;margin-bottom:20px;filter:drop-shadow(0 8px 32px rgba(47,210,125,0.3))}
-.lp-brand{font-size:52px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#2fd27d,#4f8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
-.lp-brand-sub{font-size:18px;font-weight:300;letter-spacing:8px;color:#8ea0bd;margin-top:2px;margin-bottom:8px}
-.lp-tagline{font-size:14px;color:var(--muted);max-width:280px;margin:0 auto 28px;line-height:1.6}
-.lp-features{display:flex;gap:0;margin-bottom:36px;border:1px solid var(--line);border-radius:14px;overflow:hidden;max-width:320px;width:100%}
-.lp-feature{flex:1;padding:14px 6px;text-align:center;border-right:1px solid var(--line)}
-.lp-feature:last-child{border-right:none}
-.lp-feature-icon{font-size:18px;margin-bottom:4px}
-.lp-feature-label{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--muted)}
-.lp-cta{width:100%;max-width:320px;padding:16px;border-radius:16px;font-size:17px;font-weight:700;border:none;cursor:pointer;background:linear-gradient(135deg,#2fd27d,#4f8cff);color:#fff;margin-bottom:12px;letter-spacing:.3px}
-.lp-already{font-size:13px;color:var(--muted)}
-.lp-already span{color:var(--accent);cursor:pointer;font-weight:600}
-
 /* ---------- LOGIN SCREEN ---------- */
-#login-screen{position:fixed;inset:0;background:#0b1220;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;overflow-y:auto}
+#login-screen{position:fixed;inset:0;background:#0b1220;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;overflow-y:auto}
 #login-screen.hidden{display:none}
-#login-screen .l-logo{width:72px;height:72px;border-radius:18px;margin-bottom:14px;filter:drop-shadow(0 4px 16px rgba(47,210,125,0.25))}
-#login-screen .l-brand{font-size:36px;font-weight:900;background:linear-gradient(135deg,#2fd27d,#4f8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
-#login-screen .l-brand-sub{font-size:12px;font-weight:300;letter-spacing:6px;color:#8ea0bd;margin-bottom:24px}
-#login-screen .l-form{width:100%;max-width:340px;text-align:left}
-#login-screen .l-mode-title{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--txt);text-align:center}
-#login-screen .l-form input{width:100%;padding:14px 16px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--txt);font-size:15px;margin-bottom:10px;outline:none;transition:border .2s}
-#login-screen .l-form input:focus{border-color:#2fd27d}
-#login-screen .l-btn{width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px;background:linear-gradient(135deg,#2fd27d,#4f8cff);color:#fff;letter-spacing:.3px}
+#login-screen::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:500px;height:500px;background:radial-gradient(circle,rgba(47,210,125,.08) 0%,transparent 70%);pointer-events:none}
+#login-screen .l-logo{width:80px;height:80px;border-radius:20px;margin-bottom:20px;filter:drop-shadow(0 8px 32px rgba(47,210,125,.35))}
+#login-screen .l-brand{font-size:52px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#2fd27d,#4f8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;margin-bottom:4px}
+#login-screen .l-brand-sub{font-size:11px;font-weight:400;letter-spacing:5px;color:#8ea0bd;margin-bottom:6px;text-transform:uppercase}
+#login-screen .l-brand-tagline{font-size:12px;color:#5a7494;margin-bottom:36px}
+#login-screen .l-card{width:100%;max-width:360px;background:#131c2e;border:1px solid #1e2d45;border-radius:24px;padding:28px 24px;text-align:left}
+#login-screen .l-mode-title{font-size:18px;font-weight:700;margin-bottom:20px;color:#e8eef7;text-align:center}
+#login-screen .l-input-wrap{position:relative;margin-bottom:12px}
+#login-screen .l-input-wrap .l-input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;opacity:.5}
+#login-screen .l-form input{width:100%;padding:14px 16px 14px 42px;border-radius:14px;background:#0f1826;border:1.5px solid #1e2d45;color:#e8eef7;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+#login-screen .l-form input:focus{border-color:#2fd27d;box-shadow:0 0 0 3px rgba(47,210,125,.1)}
+#login-screen .l-form input::placeholder{color:#3a5070}
+#login-screen .l-btn{width:100%;padding:16px;border-radius:50px;font-size:16px;font-weight:700;border:none;cursor:pointer;margin-top:4px;margin-bottom:12px;background:linear-gradient(135deg,#2fd27d,#4f8cff);color:#fff;letter-spacing:.3px;transition:opacity .2s,transform .1s}
+#login-screen .l-btn:active{transform:scale(.98)}
 #login-screen .l-btn:disabled{opacity:.5;cursor:default}
-#login-screen .l-toggle{font-size:13px;color:var(--muted);margin-top:4px;text-align:center}
-#login-screen .l-toggle span{color:var(--accent);cursor:pointer;font-weight:600}
-#login-screen .l-error{color:var(--red);font-size:13px;margin-bottom:8px;min-height:18px;text-align:center}
-#login-screen .l-footer{margin-top:20px;display:flex;gap:16px;align-items:center;justify-content:center}
-#login-screen .l-footer span{font-size:12px;color:var(--muted);cursor:pointer;opacity:.7}
-#login-screen .l-footer span:hover{opacity:1}
+#login-screen .l-toggle{font-size:13px;color:#5a7494;text-align:center}
+#login-screen .l-toggle span{color:#2fd27d;cursor:pointer;font-weight:600}
+#login-screen .l-error{color:#ff6b6b;font-size:12px;margin-bottom:8px;min-height:16px;text-align:center}
+#login-screen .l-footer{margin-top:20px;display:flex;gap:20px;align-items:center;justify-content:center}
+#login-screen .l-footer span{font-size:12px;color:#3a5070;cursor:pointer}
+#login-screen .l-footer span:hover{color:#8ea0bd}
 </style>
 </head>
 <body>
-<div id="landing-page">
-  <img class="lp-logo" src="/gest-o-de-finan-as/icon-512.png" alt="ESC Control">
-  <div class="lp-brand">ESC</div>
-  <div class="lp-brand-sub">CONTROL</div>
-  <div class="lp-tagline">Seu painel completo para organizar, planejar e evoluir suas finanças.</div>
-  <div class="lp-features">
-    <div class="lp-feature"><div class="lp-feature-icon">👛</div><div class="lp-feature-label">EXPENSE</div></div>
-    <div class="lp-feature"><div class="lp-feature-icon">🐷</div><div class="lp-feature-label">SAVINGS</div></div>
-    <div class="lp-feature"><div class="lp-feature-icon">🛡️</div><div class="lp-feature-label">CONTROL</div></div>
-  </div>
-  <button class="lp-cta" onclick="showLoginFromLanding()">Começar agora</button>
-  <div class="lp-already">Já tem conta? <span onclick="showLoginFromLanding()">Entrar</span></div>
-</div>
-
 <div id="login-screen" class="hidden">
   <img class="l-logo" src="/gest-o-de-finan-as/icon-512.png" alt="ESC Control">
   <div class="l-brand">ESC</div>
   <div class="l-brand-sub">CONTROL</div>
-  <div class="l-form">
+  <div class="l-brand-tagline">Expense • Savings • Control</div>
+  <div class="l-form l-card">
     <div class="l-mode-title" id="l-mode-title">Entrar</div>
-    <input id="l-name" type="text" placeholder="Seu nome" style="display:none">
-    <input id="l-email" type="email" placeholder="E-mail" autocomplete="email">
-    <input id="l-pass" type="password" placeholder="Senha" autocomplete="current-password">
-    <input id="l-pass2" type="password" placeholder="Confirmar senha" style="display:none" autocomplete="new-password">
+    <div class="l-input-wrap" id="l-name-wrap" style="display:none">
+      <span class="l-input-icon">👤</span>
+      <input id="l-name" type="text" placeholder="Seu nome" autocomplete="name">
+    </div>
+    <div class="l-input-wrap">
+      <span class="l-input-icon">✉️</span>
+      <input id="l-email" type="email" placeholder="E-mail" autocomplete="email">
+    </div>
+    <div class="l-input-wrap">
+      <span class="l-input-icon">🔒</span>
+      <input id="l-pass" type="password" placeholder="Senha" autocomplete="current-password">
+    </div>
+    <div class="l-input-wrap" id="l-pass2-wrap" style="display:none">
+      <span class="l-input-icon">🔒</span>
+      <input id="l-pass2" type="password" placeholder="Confirmar senha" autocomplete="new-password">
+    </div>
     <div class="l-error" id="l-error"></div>
     <button class="l-btn" id="l-submit" onclick="authSubmit()">Entrar</button>
     <div class="l-toggle" id="l-toggle">Não tem conta? <span onclick="authToggleMode()">Criar conta</span></div>
-    <div class="l-footer">
-      <span onclick="authForgotPassword()">Esqueci minha senha</span>
-      <span onclick="showLanding()">Sobre</span>
-    </div>
+  </div>
+  <div class="l-footer">
+    <span onclick="authForgotPassword()">Esqueci minha senha</span>
+    <span onclick="window.location.href='/gest-o-de-finan-as/landing.html'">Sobre</span>
   </div>
 </div>
 <header>
@@ -1712,24 +1701,14 @@ function saveMeta(id){
 }
 function delMeta(id){D.metas=D.metas.filter(x=>x.id!==id);closeModal();save();}
 
-/* ---------- LANDING / LOGIN NAV ---------- */
-function showLanding(){
-  document.getElementById('landing-page').classList.remove('hidden');
-  document.getElementById('login-screen').classList.add('hidden');
-}
-function showLoginFromLanding(){
-  document.getElementById('landing-page').classList.add('hidden');
-  document.getElementById('login-screen').classList.remove('hidden');
-}
-
 /* ---------- LOGIN / AUTH ---------- */
 let _authMode='login'; // 'login' | 'signup'
 function authToggleMode(){
   _authMode=_authMode==='login'?'signup':'login';
   const isSignup=_authMode==='signup';
   document.getElementById('l-mode-title').textContent=isSignup?'Criar conta':'Entrar';
-  document.getElementById('l-name').style.display=isSignup?'block':'none';
-  document.getElementById('l-pass2').style.display=isSignup?'block':'none';
+  document.getElementById('l-name-wrap').style.display=isSignup?'block':'none';
+  document.getElementById('l-pass2-wrap').style.display=isSignup?'block':'none';
   document.getElementById('l-submit').textContent=isSignup?'Criar conta':'Entrar';
   document.getElementById('l-pass').placeholder=isSignup?'Senha (mín. 6 caracteres)':'Senha';
   document.getElementById('l-pass').autocomplete=isSignup?'new-password':'current-password';
@@ -1774,8 +1753,8 @@ function authSignOut(){
   if(fbUnsub){fbUnsub();fbUnsub=null;}
   firebase.auth().signOut();
 }
-function _showLoginScreen(){document.getElementById('landing-page').classList.remove('hidden');document.getElementById('login-screen').classList.add('hidden');}
-function _hideLoginScreen(){document.getElementById('landing-page').classList.add('hidden');document.getElementById('login-screen').classList.add('hidden');}
+function _showLoginScreen(){document.getElementById('login-screen').classList.remove('hidden');}
+function _hideLoginScreen(){document.getElementById('login-screen').classList.add('hidden');}
 
 /* ---------- STARTUP ---------- */
 fbInit(); // Firebase Auth cuida de tudo via onAuthStateChanged
