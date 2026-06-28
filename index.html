@@ -1754,4 +1754,30 @@ function authSubmit(){
 }
 function authForgotPassword(){
   const email=document.getElementById('l-email').value.trim();
-  if(!email){_setAuthError('Digite seu e-mail acim
+  if(!email){_setAuthError('Digite seu e-mail acima para receber o link de redefinição.');return;}
+  _setAuthLoading(true);
+  firebase.auth().sendPasswordResetEmail(email)
+    .then(()=>{_setAuthError('');_setAuthLoading(false);alert('E-mail de redefinição enviado para '+email);})
+    .catch(e=>{_setAuthError(_friendlyAuthError(e.code));_setAuthLoading(false);});
+}
+function authSignOut(){
+  if(!confirm('Deseja sair da conta?'))return;
+  firebase.auth().signOut();
+}
+function renderAuth(){
+  const b=document.getElementById('more-auth-block');
+  if(!b)return;
+  const user=firebase.apps.length?firebase.auth().currentUser:null;
+  const email=user?user.email:'';
+  b.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Conta conectada</div>
+    <div style="font-weight:600;margin-bottom:12px">${email}</div>
+    <button class="btn ghost" style="width:100%" onclick="authSignOut()">Sair da conta</button>`;
+}
+// ---------- STARTUP ----------
+migrate();
+render();
+fbInit();
+updateUSD(true);
+</script>
+</body>
+</html>
