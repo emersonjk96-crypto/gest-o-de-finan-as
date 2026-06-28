@@ -1,0 +1,24 @@
+{
+  "name": "ESC Control",
+  "short_name": "ESC Control",
+  "description": "Seu painel completo para organizar, planejar e evoluir suas finanças.",
+  "start_url": "/gest-o-de-finan-as/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/gest-o-de-finan-as/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/gest-o-de-finan-as/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
