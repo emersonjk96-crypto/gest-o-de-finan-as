@@ -1274,15 +1274,18 @@ function renderCharts(){
       const paid=D.bills.filter(b=>b.isFatura&&b.cardId===c.id&&b.paid).reduce((a,b)=>a+ +b.value,0);
       return s;
     },0);
-    // Usar bills de fatura não pagas como proxy do comprometido
-    const usedFatura=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+ +b.value,0);
+    // Fatura do mês visualizado
+    const fatMes=D.bills.find(b=>b.isFatura&&b.cardId===c.id&&b.month===insM);
+    if(!fatMes)return null;
+    const usedFatura=+fatMes.value||0;
     const pct=c.limit?Math.round(usedFatura/c.limit*100):0;
     if(usedFatura===0)return null;
     const over=pct>100;
+    const paidLabel=fatMes.paid?" · ✅ Paga":"";
     return {icon:"💳",label:"Cartão "+c.name,
       val:pct+"%",
-      sub:over?`🚨 Excedido em ${fmt0(usedFatura-c.limit)}`:`${fmt0(usedFatura)} de ${fmt0(c.limit)}`,
-      color:over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
+      sub:(over?`🚨 Excedido em ${fmt0(usedFatura-c.limit)}`:`${fmt0(usedFatura)} de ${fmt0(c.limit)}`)+paidLabel,
+      color:fatMes.paid?"var(--muted)":over?"var(--red)":pct>80?"var(--amber)":"var(--green)",
       onclick:"showKpiCartao()"};
   }).filter(Boolean);
   const cardKpi=cardKpis[0]||null;
