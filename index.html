@@ -1158,8 +1158,9 @@ function renderMore(){
   }).join(""):'<div class="empty">Nenhum cartão.</div>';
   document.getElementById("m-metas").innerHTML=D.metas.length?D.metas.map(g=>{
     const {pct,cur,tot}=calcMetaProg(g);
-    const ic=g.type==="debt"?"💸":"💰";
-    const lbl=g.type==="debt"?`${fmt(cur)} / ${fmt(tot)} quitado (${pct}%)`:`${fmt(cur)} / ${fmt(tot)} (${pct}%)`;
+    const ic=g.type==="debt"?"💸":g.type==="usd"?"🇺🇸":"💰";
+    const _fmtMeta=(v,m)=>m==="USD"?`US$ ${(+v).toFixed(2)}`:fmt(v);
+    const lbl=g.type==="debt"?`${fmt(cur)} / ${fmt(tot)} quitado (${pct}%)`:g.type==="usd"?`${_fmtMeta(cur,"USD")} / ${_fmtMeta(tot,"USD")} (${pct}%)`:`${fmt(cur)} / ${fmt(tot)} (${pct}%)`;
     let prev2="";if(g.type==="savings"&&g.monthlyGoal&&pct<100){const ms=Math.ceil(Math.max(0,tot-cur)/g.monthlyGoal);prev2=`<div style="font-size:11px;color:var(--muted);margin-top:2px">📅 ~${ms} meses · ${fmt(g.monthlyGoal)}/mês</div>`;}
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openMeta(${g.id})">${ic} ${g.name}</b><span class="note">${lbl}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${g.type==="debt"?"var(--amber)":"var(--green)"}"></div></div>${prev2}</div>`;
   }).join(""):'<div class="empty">Nenhuma meta.</div>';
@@ -1207,9 +1208,19 @@ function showKpiInvestimentos(inv,pat){
 function showKpiCartao(){
   const insM=_insMonth||todayMonth();
   const rows=D.cards.filter(c=>c.limit).map(card=>{
-    // Total acumulado em aberto (mesmo cálculo do Mais e do KPI card)
-    const fatM=D.bills.find(b=>b.isFatura&&b.cardId===card.id&&b.month===insM);
-    const totalUsed=fatM?(+fatM.value):0;
+    // Mesmo cálculo do KPI card: snapshot se existir, senão fórmula original
+    const _cd=+(card.closeDay||8);
+    const [_iy,_im]=insM.split('-').map(Number);
+    const _isClosed=new Date()>=new Date(_iy,_im-1,_cd);
+    const _snapK=(D.kpiSnaps||{})[card.id+':'+insM];
+    let totalUsed;
+    if(_isClosed&&_snapK!=null){
+      totalUsed=_snapK;
+    }else{
+      const _unp=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===card.id).reduce((s,b)=>s+(+b.value),0);
+      const _pm=_isClosed?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===card.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0):0;
+      totalUsed=_unp+_pm;
+    }
     const pct=Math.round(totalUsed/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
     const statusLabel=pct>100?"🚨 Excedido em "+fmt0(totalUsed-card.limit):pct>80?"⚠️ Atenção":"✅ OK";
@@ -1739,10 +1750,16 @@ function calcMetaProg(g){
     const bills=D.bills.filter(b=>b.group&&grps.includes(b.group));
     const tot=bills.reduce((s,b)=>s+ +b.value,0);
     const cur=bills.filter(b=>b.paid).reduce((s,b)=>s+ +b.value,0);
-    return{pct:tot?Math.min(100,Math.round(cur/tot*100)):0,cur,tot};
+    return{pct:tot?Math.min(100,Math.round(cur/tot*100)):0,cur,tot,moeda:"BRL"};
+  }
+  if(g.type==="usd"){
+    // Soma de contas isInvest com moeda USD
+    const cur=D.accounts.filter(a=>a.isInvest&&a.moeda==="USD").reduce((s,a)=>s+(+a.value),0);
+    const tot=+(g.target||0);
+    return{pct:tot?Math.min(100,Math.round(cur/tot*100)):0,cur,tot,moeda:"USD"};
   }
   const cur=+(g.current||0),tot=+(g.target||0);
-  return{pct:tot?Math.min(100,Math.round(cur/tot*100)):0,cur,tot};
+  return{pct:tot?Math.min(100,Math.round(cur/tot*100)):0,cur,tot,moeda:"BRL"};
 }
 let _metaType="savings";
 function openMeta(id){
@@ -1761,11 +1778,16 @@ function openMeta(id){
   modal(`<h3>${id?"Editar meta":"Nova meta"}</h3>
     <div class="fld"><label>Nome da meta</label><input id="f-gn" value="${g.name}"></div>
     <div class="seg" style="margin-bottom:14px">
-      <div id="mt-sav" class="${_metaType==="savings"?"on":""}" onclick="_metaType='savings';document.getElementById('mt-sav').className='on';document.getElementById('mt-debt').className='';document.getElementById('meta-sav-box').style.display='block';document.getElementById('meta-debt-box').style.display='none'">&#x1F4B0; Poupan&ccedil;a</div>
-      <div id="mt-debt" class="${_metaType==="debt"?"on":""}" onclick="_metaType='debt';document.getElementById('mt-debt').className='on';document.getElementById('mt-sav').className='';document.getElementById('meta-debt-box').style.display='block';document.getElementById('meta-sav-box').style.display='none'">&#x1F4B8; Quita&ccedil;&atilde;o</div>
+      <div id="mt-sav" class="${_metaType==="savings"?"on":""}" onclick="_metaType='savings';['mt-sav','mt-debt','mt-usd'].forEach(x=>{const el=document.getElementById(x);if(el)el.className=x==='mt-sav'?'on':''});document.getElementById('meta-sav-box').style.display='block';document.getElementById('meta-debt-box').style.display='none';document.getElementById('meta-usd-box').style.display='none'">&#x1F4B0; Poupan&ccedil;a</div>
+      <div id="mt-debt" class="${_metaType==="debt"?"on":""}" onclick="_metaType='debt';['mt-sav','mt-debt','mt-usd'].forEach(x=>{const el=document.getElementById(x);if(el)el.className=x==='mt-debt'?'on':''});document.getElementById('meta-debt-box').style.display='block';document.getElementById('meta-sav-box').style.display='none';document.getElementById('meta-usd-box').style.display='none'">&#x1F4B8; Quita&ccedil;&atilde;o</div>
+      <div id="mt-usd" class="${_metaType==="usd"?"on":""}" onclick="_metaType='usd';['mt-sav','mt-debt','mt-usd'].forEach(x=>{const el=document.getElementById(x);if(el)el.className=x==='mt-usd'?'on':''});document.getElementById('meta-usd-box').style.display='block';document.getElementById('meta-sav-box').style.display='none';document.getElementById('meta-debt-box').style.display='none'">&#x1F1FA;&#x1F1F8; USD</div>
     </div>
     <div id="meta-sav-box" style="display:${_metaType==="savings"?"block":"none"}">
       <div class="flex"><div class="fld"><label>Objetivo (R$)</label><input id="f-gt" type="number" inputmode="decimal" value="${g.target||""}"></div><div class="fld"><label>J&aacute; guardado (R$)</label><input id="f-gc" type="number" inputmode="decimal" value="${g.current||""}"></div></div>
+    </div>
+    <div id="meta-usd-box" style="display:${_metaType==="usd"?"block":"none"}">
+      <div class="fld"><label>Objetivo (US$)</label><input id="f-gt-usd" type="number" inputmode="decimal" value="${g.target||""}"></div>
+      <p class="note" style="margin:6px 0 0">Acompanha automaticamente o saldo das contas USD em investimentos (ex: Nomad).</p>
     </div>
     <div id="meta-debt-box" style="display:${_metaType==="debt"?"block":"none"}">
       <div class="note" style="margin-bottom:8px">Selecione as d&iacute;vidas parceladas desta meta:</div>
@@ -1780,6 +1802,9 @@ function saveMeta(id){
   if(_metaType==="debt"){
     const groups=[...document.querySelectorAll("#debt-groups-list .chk-row")].filter(r=>r.querySelector(".chk").classList.contains("on")).map(r=>r.dataset.gid);
     if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"debt",groups})}else D.metas.push({id:nid(),name,type:"debt",groups});
+  }else if(_metaType==="usd"){
+    const target=parseFloat(document.getElementById("f-gt-usd").value)||0;
+    if(id){Object.assign(D.metas.find(x=>x.id===id),{name,type:"usd",target})}else D.metas.push({id:nid(),name,type:"usd",target});
   }else{
     const target=parseFloat(document.getElementById("f-gt").value)||0;
     const current=parseFloat(document.getElementById("f-gc").value)||0;
