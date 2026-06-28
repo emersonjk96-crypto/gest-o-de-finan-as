@@ -629,6 +629,8 @@ if(!localStorage.getItem(SKSTORE))localStorage.setItem(SKSTORE,DEFAULT_SYNC_ID);
 let syncId=localStorage.getItem(SKSTORE)||DEFAULT_SYNC_ID;
 let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
+function _showLoginScreen(){const el=document.getElementById("login-screen");if(el)el.classList.remove("hidden");}
+function _hideLoginScreen(){const el=document.getElementById("login-screen");if(el)el.classList.add("hidden");}
 function fbInit(){
   try{
     if(!firebase.apps.length)firebase.initializeApp(fbConfig);
