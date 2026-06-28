@@ -87,9 +87,54 @@ canvas{max-width:100%}
 .nu-row small{color:var(--muted);font-size:12px;display:block;margin-top:2px}
 .nu-total-box{background:linear-gradient(135deg,rgba(139,0,212,.2),rgba(98,0,234,.1));border:1px solid rgba(139,0,212,.35);border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
 .nu-preview{font-size:12px;color:var(--amber);margin:6px 0 10px;padding:8px 10px;background:rgba(255,181,71,.1);border-radius:8px;border:1px solid rgba(255,181,71,.2)}
+
+/* ---------- WELCOME SCREEN ---------- */
+#welcome-screen{position:fixed;inset:0;background:#0b1220;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+#welcome-screen.hidden{display:none}
+#welcome-screen .w-logo{width:110px;height:110px;border-radius:24px;margin-bottom:24px;object-fit:contain}
+#welcome-screen .w-title{font-size:32px;font-weight:800;background:linear-gradient(135deg,#2fd27d,#4f8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+#welcome-screen .w-sub{font-size:14px;color:var(--muted);margin-bottom:40px}
+#welcome-screen .w-btn{width:100%;max-width:320px;padding:15px;border-radius:14px;font-size:16px;font-weight:700;border:none;cursor:pointer;margin-bottom:12px}
+#welcome-screen .w-btn.primary{background:linear-gradient(135deg,#2fd27d,#4f8cff);color:#fff}
+#welcome-screen .w-btn.secondary{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+#welcome-screen .w-connect{width:100%;max-width:320px;display:none;margin-top:4px}
+#welcome-screen .w-connect input{width:100%;padding:13px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--txt);font-size:13px;margin-bottom:10px}
+#welcome-screen .w-connect .w-btn{margin-bottom:6px}
+#welcome-screen .w-back{font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px;text-decoration:underline}
+
+/* ---------- LOGIN SCREEN ---------- */
+#login-screen{position:fixed;inset:0;background:#0b1220;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;overflow-y:auto}
+#login-screen.hidden{display:none}
+#login-screen .l-logo{width:96px;height:96px;border-radius:22px;margin-bottom:20px;object-fit:contain}
+#login-screen .l-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,#2fd27d,#4f8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+#login-screen .l-sub{font-size:13px;color:var(--muted);margin-bottom:32px}
+#login-screen .l-form{width:100%;max-width:340px;text-align:left}
+#login-screen .l-form input{width:100%;padding:14px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--txt);font-size:15px;margin-bottom:12px;outline:none}
+#login-screen .l-form input:focus{border-color:var(--accent)}
+#login-screen .l-btn{width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;border:none;cursor:pointer;margin-bottom:10px;background:linear-gradient(135deg,#2fd27d,#4f8cff);color:#fff}
+#login-screen .l-btn:disabled{opacity:.5;cursor:default}
+#login-screen .l-toggle{font-size:13px;color:var(--muted);margin-top:6px}
+#login-screen .l-toggle span{color:var(--accent);cursor:pointer;font-weight:600}
+#login-screen .l-error{color:var(--red);font-size:13px;margin-bottom:10px;min-height:18px;text-align:center}
+#login-screen .l-mode-title{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--txt)}
 </style>
 </head>
 <body>
+<div id="login-screen">
+  <img class="l-logo" src="/gest-o-de-finan-as/icon-512.png" alt="ESC Control">
+  <div class="l-title">ESC Control</div>
+  <div class="l-sub">Organize, planeje e evolua suas finanças.</div>
+  <div class="l-form">
+    <div class="l-mode-title" id="l-mode-title">Entrar</div>
+    <input id="l-name" type="text" placeholder="Seu nome" style="display:none">
+    <input id="l-email" type="email" placeholder="E-mail" autocomplete="email">
+    <input id="l-pass" type="password" placeholder="Senha" autocomplete="current-password">
+    <input id="l-pass2" type="password" placeholder="Confirmar senha" style="display:none" autocomplete="new-password">
+    <div class="l-error" id="l-error"></div>
+    <button class="l-btn" id="l-submit" onclick="authSubmit()">Entrar</button>
+    <div class="l-toggle" id="l-toggle">Não tem conta? <span onclick="authToggleMode()">Criar conta</span></div>
+  </div>
+</div>
 <header>
   <h1>ESC Control <span id="cloud">offline</span></h1>
   <p id="sub">—</p>
@@ -559,15 +604,35 @@ let syncId=localStorage.getItem(SKSTORE)||DEFAULT_SYNC_ID;
 let fbDb=null,fbUnsub=null,pushTimer2=null;
 function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
 function fbInit(){
-  try{firebase.initializeApp(fbConfig);fbDb=firebase.firestore();}catch(e){cloudBadge("err","offline");return;}
-  fbListen();
-  renderAuth();
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(fbConfig);
+    fbDb=firebase.firestore();
+  }catch(e){cloudBadge("err","offline");return;}
+  firebase.auth().onAuthStateChanged(function(user){
+    if(user){
+      // Usuário logado — usa UID como syncId
+      syncId=user.uid;
+      localStorage.setItem(SKSTORE,syncId);
+      _hideLoginScreen();
+      // Migra dados locais se existirem e forem mais recentes
+      const localNewer=(D.updatedAt||0)>0;
+      fbListen(localNewer);
+      renderAuth();
+      D.cards.forEach(c=>recalcCard(c.id));
+      render();
+      updateUSD(true);
+    }else{
+      cloudBadge('err','offline');
+      _showLoginScreen();
+    }
+  });
 }
-function fbListen(){
+function fbListen(pushFirst){
   if(fbUnsub){fbUnsub();fbUnsub=null;}
   if(!fbDb)return;
   cloudBadge("","conectando...");
   const ref=fbDb.collection("syncs").doc(syncId);
+  if(pushFirst){fbPush();}
   fbUnsub=ref.onSnapshot(function(snap){
     if(snap.exists&&snap.data().data){
       const rem=snap.data().data;
@@ -602,24 +667,15 @@ function newAccount(){
 }
 function renderAuth(){
   const b=document.getElementById("acc-box");if(!b)return;
-  const short=syncId.slice(0,8)+"…";
+  const user=firebase.apps.length?firebase.auth().currentUser:null;
+  const email=user?user.email:'—';
   b.innerHTML=`
-    <button class="btn" style="width:100%;margin-bottom:12px;font-size:15px" onclick="copySyncId()">📲 Compartilhar com celular</button>
-    <p class="note" style="margin:0 0 14px">Clique acima no computador → link copiado → abra no celular → dados sincronizam sozinhos.</p>
-    <div style="margin-bottom:12px;padding:10px;background:var(--card2);border-radius:10px;font-size:12px">
-      <div style="color:var(--muted);margin-bottom:4px">Seu ID de sincronização:</div>
-      <div style="font-family:monospace;word-break:break-all;color:var(--accent)">${syncId}</div>
+    <div style="padding:14px;background:var(--card2);border-radius:12px;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Conta conectada</div>
+      <div style="font-size:15px;font-weight:600;color:var(--txt)">${email}</div>
     </div>
-    <details style="font-size:12px;color:var(--muted)">
-      <summary style="cursor:pointer;margin-bottom:6px">Conectar a outra conta</summary>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="sync-input" placeholder="Cole o código ou link" style="flex:1;font-size:11px">
-        <button class="btn sm" onclick="applySyncId()">Conectar</button>
-      </div>
-    </details>
-    <div style="margin-top:12px;text-align:center">
-      <button class="del" onclick="newAccount()">Criar conta nova (limpa tudo)</button>
-    </div>`;
+    <p class="note" style="margin:0 0 16px">Para acessar no celular, abra o link do app e faça login com o mesmo e-mail e senha.</p>
+    <button class="btn danger" style="width:100%" onclick="authSignOut()">🚪 Sair da conta</button>`;
 }
 
 /* ---------- COTAÇÕES ---------- */
@@ -1619,16 +1675,56 @@ function saveMeta(id){
 }
 function delMeta(id){D.metas=D.metas.filter(x=>x.id!==id);closeModal();save();}
 
+/* ---------- LOGIN / AUTH ---------- */
+let _authMode='login'; // 'login' | 'signup'
+function authToggleMode(){
+  _authMode=_authMode==='login'?'signup':'login';
+  const isSignup=_authMode==='signup';
+  document.getElementById('l-mode-title').textContent=isSignup?'Criar conta':'Entrar';
+  document.getElementById('l-name').style.display=isSignup?'block':'none';
+  document.getElementById('l-pass2').style.display=isSignup?'block':'none';
+  document.getElementById('l-submit').textContent=isSignup?'Criar conta':'Entrar';
+  document.getElementById('l-pass').placeholder=isSignup?'Senha (mín. 6 caracteres)':'Senha';
+  document.getElementById('l-pass').autocomplete=isSignup?'new-password':'current-password';
+  document.getElementById('l-toggle').innerHTML=isSignup
+    ?'Já tem conta? <span onclick="authToggleMode()">Entrar</span>'
+    :'Não tem conta? <span onclick="authToggleMode()">Criar conta</span>';
+  document.getElementById('l-error').textContent='';
+}
+function _setAuthError(msg){document.getElementById('l-error').textContent=msg;}
+function _setAuthLoading(on){document.getElementById('l-submit').disabled=on;document.getElementById('l-submit').textContent=on?'Aguarde...':((_authMode==='signup')?'Criar conta':'Entrar');}
+function _friendlyAuthError(code){
+  const m={'auth/user-not-found':'E-mail não encontrado.','auth/wrong-password':'Senha incorreta.','auth/invalid-credential':'E-mail ou senha incorretos.','auth/email-already-in-use':'E-mail já cadastrado.','auth/invalid-email':'E-mail inválido.','auth/weak-password':'Senha fraca (mín. 6 caracteres).','auth/too-many-requests':'Muitas tentativas. Tente mais tarde.'};
+  return m[code]||'Erro: '+code;
+}
+function authSubmit(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  _setAuthError('');
+  if(!email||!pass){_setAuthError('Preencha e-mail e senha.');return;}
+  if(_authMode==='signup'){
+    const pass2=document.getElementById('l-pass2').value;
+    if(pass!==pass2){_setAuthError('As senhas não coincidem.');return;}
+    if(pass.length<6){_setAuthError('Senha deve ter pelo menos 6 caracteres.');return;}
+    _setAuthLoading(true);
+    firebase.auth().createUserWithEmailAndPassword(email,pass)
+      .catch(e=>{_setAuthError(_friendlyAuthError(e.code));_setAuthLoading(false);});
+  }else{
+    _setAuthLoading(true);
+    firebase.auth().signInWithEmailAndPassword(email,pass)
+      .catch(e=>{_setAuthError(_friendlyAuthError(e.code));_setAuthLoading(false);});
+  }
+}
+function authSignOut(){
+  if(!confirm('Sair da conta?'))return;
+  if(fbUnsub){fbUnsub();fbUnsub=null;}
+  firebase.auth().signOut();
+}
+function _showLoginScreen(){document.getElementById('login-screen').classList.remove('hidden');}
+function _hideLoginScreen(){document.getElementById('login-screen').classList.add('hidden');}
+
 /* ---------- STARTUP ---------- */
-(function(){
-  const p=new URLSearchParams(location.search);
-  const s=p.get("sync");
-  if(s&&s!==syncId){localStorage.setItem(SKSTORE,s);syncId=s;history.replaceState(null,"",location.pathname);}
-})();
-D.cards.forEach(c=>recalcCard(c.id));
-render();
-fbInit();
-updateUSD(true);
+fbInit(); // Firebase Auth cuida de tudo via onAuthStateChanged
 </script>
 </body>
 </html>
