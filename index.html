@@ -1430,8 +1430,8 @@ function togglePaid(id){
     const sign=b.type==="income"?1:-1;
     c.value=Math.round((c.value+(b.paid?sign:-sign)*(+b.value))*100)/100;
   }
-  // Snapshot KPI: salvar valor do cartão quando fatura de mês fechado é alterada
-  if(b.isFatura&&b.cardId){
+  // Snapshot KPI: salvar SOMENTE ao pagar (não ao despagar) fatura de mês fechado
+  if(b.isFatura&&b.cardId&&b.paid){
     const card=D.cards.find(x=>x.id===b.cardId);
     if(card&&card.limit){
       const closeDay=+(card.closeDay||8);
@@ -1442,6 +1442,17 @@ function togglePaid(id){
         const unpaid=D.bills.filter(x=>!x.paid&&x.isFatura&&x.cardId===card.id).reduce((s,x)=>s+(+x.value),0);
         const paidM=D.bills.filter(x=>x.paid&&x.isFatura&&x.cardId===card.id&&x.month===b.month).reduce((s,x)=>s+(+x.value),0);
         D.kpiSnaps[key]=unpaid+paidM;
+      }
+    }
+  }
+  // Ao DESPAGAR fatura de mês fechado, apagar snap para recalcular corretamente
+  if(b.isFatura&&b.cardId&&!b.paid){
+    const card=D.cards.find(x=>x.id===b.cardId);
+    if(card&&card.limit){
+      const closeDay=+(card.closeDay||8);
+      const [mY,mN]=b.month.split('-').map(Number);
+      if(new Date()>=new Date(mY,mN-1,closeDay)&&D.kpiSnaps){
+        delete D.kpiSnaps[card.id+':'+b.month];
       }
     }
   }
