@@ -1179,25 +1179,48 @@ function showKpiInvestimentos(inv,pat){
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
 function showKpiCartao(){
+  const insM=_insMonth||todayMonth();
+  const nextM=addM(insM,1);
   const rows=D.cards.filter(c=>c.limit).map(card=>{
-    const allBills=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===card.id);
-    const used=allBills.reduce((s,b)=>s+(+b.value),0);
-    const pct=Math.round(used/card.limit*100);
+    // Fatura do mês visualizado
+    const fatMes=D.bills.find(b=>b.isFatura&&b.cardId===card.id&&b.month===insM);
+    const usedMes=fatMes?+fatMes.value:0;
+    const pct=Math.round(usedMes/card.limit*100);
     const cor=pct>100?"var(--red)":pct>80?"var(--amber)":"var(--green)";
-    // Breakdown por mês
-    const byMonth={};allBills.forEach(b=>{byMonth[b.month]=(byMonth[b.month]||0)+(+b.value);});
-    const meses=Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,6)
-      .map(([m,v])=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 0"><span>${mLabel(m)}</span><span>${fmt0(v)}</span></div>`).join("");
-    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-weight:600">${card.name}</span><span style="color:${cor};font-weight:700">${pct}%</span></div>
-      <div style="height:6px;background:var(--line);border-radius:4px;margin-bottom:6px"><div style="height:6px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--muted)">${fmt0(used)} comprometido de ${fmt0(card.limit)}</span><span style="color:${cor}">${pct>100?"🚨 Excedido":pct>80?"⚠️ Atenção":"✅ OK"}</span></div>
-      ${meses?`<div style="padding:6px 8px;background:var(--bg);border-radius:8px;margin-top:4px">${meses}</div>`:""}
+    const statusLabel=pct>100?"🚨 Excedido":pct>80?"⚠️ Atenção":"✅ OK";
+    const paidLabel=fatMes&&fatMes.paid?'<span style="color:var(--green);font-size:11px">✅ Paga</span>':'';
+    // Limite disponível no próximo mês (limite - soma faturas futuras não pagas)
+    const futuroPago=D.bills.filter(b=>b.isFatura&&b.cardId===card.id&&b.month>=nextM&&!b.paid).reduce((s,b)=>s+(+b.value),0);
+    const dispNext=Math.max(0,card.limit-futuroPago);
+    const dispLabel=futuroPago>card.limit
+      ?`<span style="color:var(--red)">Excedido em ${fmt0(futuroPago-card.limit)}</span>`
+      :`<span style="color:var(--green)">${fmt0(dispNext)} disponível</span>`;
+    // Histórico: últimas 6 faturas (qualquer status)
+    const hist=D.bills.filter(b=>b.isFatura&&b.cardId===card.id&&b.month<=insM)
+      .sort((a,b)=>b.month.localeCompare(a.month)).slice(0,6)
+      .map(b=>{
+        const p=Math.round(+b.value/card.limit*100);
+        const c2=p>100?"var(--red)":p>80?"var(--amber)":"var(--green)";
+        const isCur=b.month===insM;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line);${isCur?"font-weight:700":"color:var(--muted)"}">
+          <span>${mLabel(b.month)}${b.paid?' ✅':''}</span>
+          <span style="color:${isCur?c2:'inherit'}">${fmt0(+b.value)} · ${p}%</span>
+        </div>`;
+      }).join("");
+    return `<div style="padding:12px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-weight:700;font-size:15px">${card.name}</span>
+        <div style="display:flex;align-items:center;gap:8px">${paidLabel}<span style="color:${cor};font-weight:800;font-size:16px">${pct}%</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Fatura de ${mLabel(insM)}: ${fmt0(usedMes)} de ${fmt0(card.limit)} · <span style="color:${cor}">${statusLabel}</span></div>
+      <div style="height:6px;background:var(--line);border-radius:4px;margin-bottom:10px"><div style="height:6px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px;transition:width .4s"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Limite em ${mLabel(nextM)}: ${dispLabel}</div>
+      ${hist?`<div style="margin-top:6px"><div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;letter-spacing:.5px">HISTÓRICO</div>${hist}</div>`:""}
     </div>`;
   }).join("")||'<div class="note">Nenhum cartão com limite cadastrado.</div>';
-  modal(`<h3>💳 Limite do cartão</h3>
-    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">Total comprometido considerando compras de todos os meses. O limite do cartão é consumido por todas as parcelas futuras.</p>
-    <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:10px">${rows}</div>
+  modal(`<h3>💳 Limite do cartão · ${mLabel(insM)}</h3>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 14px">A % mostra o uso do limite na fatura deste mês. Meses anteriores ficam travados com seu resultado. ✅ = fatura paga.</p>
+    <div style="background:var(--card2);border-radius:12px;padding:10px 14px;margin-bottom:12px">${rows}</div>
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
 function showKpiMaiorGasto(){
