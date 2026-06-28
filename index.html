@@ -163,7 +163,7 @@ canvas{max-width:100%}
 </div>
 <header>
   <h1>ESC Control <span id="cloud">offline</span></h1>
-  <p id="sub">—</p>
+  <p id="sub"></p>
 </header>
 
 <div class="wrap">
@@ -225,10 +225,10 @@ canvas{max-width:100%}
     <div class="fld"><label>Meta mensal de saldo (R$)</label><input id="cfg-goal" type="number" inputmode="decimal"></div>
     <div class="fld"><label>Reservado p/ reinvestir em FIIs (R$)</label><input id="cfg-reserved" type="number" inputmode="decimal"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin:10px 0">
-      <div><b>Dólar automático</b><div class="note" id="usd-info">—</div></div>
+      <div><b>Dólar automático</b><div class="note" id="usd-info"></div></div>
       <div class="toggle" id="usd-toggle" onclick="toggleUSD()"><b></b></div>
     </div>
-    <div class="fld"><label>Cotação do dólar (R$) — manual se desligado</label><input id="cfg-usd" type="number" inputmode="decimal"></div>
+    <div class="fld"><label>Cotação do dólar (R$) - manual se desligado</label><input id="cfg-usd" type="number" inputmode="decimal"></div>
     <button class="btn" onclick="saveCfg()">Salvar</button>
   </div>
 </div>
@@ -694,7 +694,7 @@ function newAccount(){
 function renderAuth(){
   const b=document.getElementById("acc-box");if(!b)return;
   const user=firebase.apps.length?firebase.auth().currentUser:null;
-  const email=user?user.email:'—';
+  const email=user?user.email:'';
   b.innerHTML=`
     <div style="padding:14px;background:var(--card2);border-radius:12px;margin-bottom:16px">
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Conta conectada</div>
@@ -1189,34 +1189,29 @@ function showKpiCartao(){
     const dispLabel=totalUsed>=card.limit
       ?`<span style="color:var(--red)">R$ 0 disponível</span>`
       :`<span style="color:var(--green)">${fmt0(card.limit-totalUsed)} disponível</span>`;
-    // Histórico: todas as faturas ordenadas do mais recente
-    const hist=D.bills.filter(b=>b.isFatura&&b.cardId===card.id)
-      .sort((a,b)=>b.month.localeCompare(a.month)).slice(0,8)
-      .map(b=>{
-        const p=Math.round(+b.value/card.limit*100);
-        const c2=p>100?"var(--red)":p>80?"var(--amber)":"var(--green)";
-        const isCur=b.month===insM;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line);${isCur?"font-weight:700":"color:var(--muted)"}">
-          <span>${mLabel(b.month)}${b.paid?' ✅':''}</span>
-          <span style="color:${isCur?c2:'inherit'}">${fmt0(+b.value)} · ${p}%</span>
-        </div>`;
-      }).join("");
+    const closeDay=card.closeDay||8;
+    const dueDay=card.dueDay||15;
     return `<div style="padding:12px 0;border-bottom:1px solid var(--line)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-weight:700;font-size:15px">${card.name}</span>
         <span style="color:${cor};font-weight:800;font-size:18px">${pct}%</span>
       </div>
-      <div style="height:6px;background:var(--line);border-radius:4px;margin-bottom:8px"><div style="height:6px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-        <span style="color:var(--muted)">${fmt0(totalUsed)} comprometido de ${fmt0(card.limit)}</span>
-        <span style="color:${cor}">${statusLabel}</span>
+      <div style="height:8px;background:var(--line);border-radius:4px;margin-bottom:10px"><div style="height:8px;width:${Math.min(pct,100)}%;background:${cor};border-radius:4px;transition:width .4s"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+        <span style="color:var(--muted)">Comprometido</span>
+        <span style="font-weight:600">${fmt0(totalUsed)} de ${fmt0(card.limit)}</span>
       </div>
-      <div style="font-size:12px;margin-bottom:10px">${dispLabel}</div>
-      ${hist?`<div style="margin-top:8px"><div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px;letter-spacing:.5px">HISTÓRICO POR FATURA</div>${hist}</div>`:""}
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:12px">
+        <span style="color:var(--muted)">Disponível</span>
+        <span style="font-weight:600">${dispLabel}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.7">
+        <div style="font-weight:600;color:var(--txt);margin-bottom:4px">Como funciona</div>
+        O limite comprometido é a soma de todas as faturas em aberto. Ao pagar uma fatura, o valor é liberado e o próximo mês começa com mais limite disponível. Cada mês fecha no dia ${closeDay} e vence no dia ${dueDay}. Compras feitas após o dia ${closeDay} entram na fatura do mês seguinte.
+      </div>
     </div>`;
   }).join("")||'<div class="note">Nenhum cartão com limite cadastrado.</div>';
   modal(`<h3>💳 Limite do cartão</h3>
-    <p style="font-size:12px;color:var(--muted);margin:0 0 14px">Total comprometido = soma de todas as faturas em aberto. Ao pagar uma fatura o limite é liberado. ✅ = fatura paga.</p>
     <div style="background:var(--card2);border-radius:12px;padding:10px 14px;margin-bottom:12px">${rows}</div>
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
@@ -1322,10 +1317,10 @@ function renderCharts(){
   D.cards.forEach(c=>{if(c.limit){const isNu=/nubank/i.test(c.name);const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);const p2=Math.round(used/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used)}/${fmt(c.limit)})`});}});
   if(diffPct!==null&&diffPct>20)alertas.push({t:"warn",m:`🔥 Gastos ${diffPct}% acima do mês anterior (${fmt(expAtual)} vs ${fmt(prevExp)})`});
   if(diffPct!==null&&diffPct<=-10)alertas.push({t:"ok",m:`✅ Gastos ${Math.abs(diffPct)}% menores que o mês anterior. Ótimo!`});
-  if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês — meta recomendada: 20%`});
+  if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês. Meta recomendada: 20%`});
   if(incAtual>0&&taxa>=30)alertas.push({t:"ok",m:`🎉 Você economizou ${taxa}% da renda este mês. Excelente!`});
   D.metas.forEach(g=>{const{pct}=calcMetaProg(g);if(pct>=80&&pct<100)alertas.push({t:"ok",m:`🎯 Meta "${g.name}" quase lá: ${pct}%`});if(pct>=100)alertas.push({t:"ok",m:`✅ Meta "${g.name}" concluída!`});});
-  if(insM===today){const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)} — pode superar receita de ${fmt(incAtual)}`});}}
+  if(insM===today){const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)}. Pode superar sua receita de ${fmt(incAtual)}`});}}
   const el=n=>document.getElementById(n);
   if(el("ins-alertas")){el("ins-alertas").innerHTML=`<div class="sec-title"><h2>🔔 Alertas e insights · ${mShort(insM)}</h2></div><div class="card">`+(alertas.length?alertas.map(a=>`<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;color:${a.t==="danger"?"var(--red)":a.t==="ok"?"var(--green)":"var(--amber)"}">${a.m}</div>`).join(""):`<div class="note" style="padding:6px 0">✅ Tudo em ordem. Continue assim!</div>`)+"</div>";}
   if(el("ins-kpis"))el("ins-kpis").innerHTML=`<div class="grid2" style="margin-bottom:4px">${kpis.map(k=>`<div class="mini" ${k.onclick?`onclick="${k.onclick}" style="cursor:pointer"`:""}><div style="font-size:16px;margin-bottom:2px">${k.icon}</div><div class="lbl">${k.label}</div><div style="font-size:20px;font-weight:800;color:${k.color};margin:3px 0">${k.val}</div><div style="font-size:11px;color:var(--muted)">${k.sub}</div></div>`).join("")}</div>`;
@@ -1393,7 +1388,7 @@ function modal(html){document.getElementById("sheetbody").innerHTML=html;documen
 function closeModal(){document.getElementById("modal").classList.remove("open")}
 document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
 function catOptions(type,sel){return D.cats.filter(c=>c.type===type).map(c=>`<option ${c.name===sel?"selected":""}>${c.name}</option>`).join("")}
-function cardOptions(sel){return `<option value="">— sem cartão —</option>`+D.cards.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${c.name}</option>`).join("")}
+function cardOptions(sel){return `<option value="">sem cartão</option>`+D.cards.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${c.name}</option>`).join("")}
 
 let txType="expense",parcOn=false,_lastParcEdit="total";
 function openTx(id,defType){
@@ -1634,7 +1629,7 @@ function saveAcc(id){
 function delAcc(id){D.accounts=D.accounts.filter(x=>x.id!==id);closeModal();save()}
 
 function openInv(id){const it=id?D.invest.find(x=>x.id==id):{ativo:"",ticker:"",tipo:"FII",qtd:"",aplicado:"",atual:"",moeda:"BRL",corretora:"",lastDiv:""};
-  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCA11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd / Quantidade</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="fld"><label>Instituição / Corretora</label><select id="f-cor"><option value="" ${!it.corretora?"selected":""}>— selecione —</option><option ${it.corretora=="Nubank"?"selected":""}>Nubank</option><option ${it.corretora=="Nomad"?"selected":""}>Nomad</option><option ${it.corretora=="Binance"?"selected":""}>Binance</option><option ${it.corretora=="XP"?"selected":""}>XP</option><option ${it.corretora=="BTG"?"selected":""}>BTG</option><option ${it.corretora=="Rico"?"selected":""}>Rico</option><option ${it.corretora=="Clear"?"selected":""}>Clear</option><option ${it.corretora=="Outros"?"selected":""}>Outros</option></select></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="fld"><label>Último dividendo / provento (por cota)</label><input id="f-div" type="number" inputmode="decimal" value="${it.lastDiv||""}" placeholder="preenchido automaticamente"></div><div class="note">Cotação e dividendos atualizam sozinhos no botão Atualizar preços.</div><div class="flex"><button class="btn" onclick="saveInv('${id||0}')">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv('${id}')">Excluir</button></div>`:""}`);}
+  modal(`<h3>${id?"Editar ativo":"Novo ativo"}</h3><div class="flex"><div class="fld"><label>Nome</label><input id="f-at" value="${it.ativo}"></div><div class="fld"><label>Ticker (cotação)</label><input id="f-tk" value="${it.ticker||""}" placeholder="ex: KNCA11, JEPI"></div></div><div class="flex"><div class="fld"><label>Tipo</label><select id="f-tp"><option ${it.tipo=="RF"?"selected":""}>RF</option><option ${it.tipo=="FII"?"selected":""}>FII</option><option ${it.tipo=="ETF"?"selected":""}>ETF</option><option ${it.tipo=="REIT"?"selected":""}>REIT</option><option ${it.tipo=="Ação"?"selected":""}>Ação</option><option ${it.tipo=="Cripto"?"selected":""}>Cripto</option></select></div><div class="fld"><label>Moeda</label><select id="f-mo"><option ${it.moeda=="BRL"?"selected":""}>BRL</option><option ${it.moeda=="USD"?"selected":""}>USD</option></select></div></div><div class="fld"><label>Qtd / Quantidade</label><input id="f-qt" type="number" inputmode="decimal" value="${it.qtd}"></div><div class="fld"><label>Instituição / Corretora</label><select id="f-cor"><option value="" ${!it.corretora?"selected":""}>selecione</option><option ${it.corretora=="Nubank"?"selected":""}>Nubank</option><option ${it.corretora=="Nomad"?"selected":""}>Nomad</option><option ${it.corretora=="Binance"?"selected":""}>Binance</option><option ${it.corretora=="XP"?"selected":""}>XP</option><option ${it.corretora=="BTG"?"selected":""}>BTG</option><option ${it.corretora=="Rico"?"selected":""}>Rico</option><option ${it.corretora=="Clear"?"selected":""}>Clear</option><option ${it.corretora=="Outros"?"selected":""}>Outros</option></select></div><div class="flex"><div class="fld"><label>Valor aplicado (total)</label><input id="f-ap" type="number" inputmode="decimal" value="${it.aplicado}"></div><div class="fld"><label>Cotação atual (por cota)</label><input id="f-cur" type="number" inputmode="decimal" value="${it.price!=null?it.price:""}"></div></div><div class="fld"><label>Último dividendo / provento (por cota)</label><input id="f-div" type="number" inputmode="decimal" value="${it.lastDiv||""}" placeholder="preenchido automaticamente"></div><div class="note">Cotação e dividendos atualizam sozinhos no botão Atualizar preços.</div><div class="flex"><button class="btn" onclick="saveInv('${id||0}')">Salvar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>${id?`<div style="text-align:center;margin-top:14px"><button class="del" onclick="delInv('${id}')">Excluir</button></div>`:""}`);}
 function saveInv(id){const qt=parseFloat(document.getElementById("f-qt").value)||0;const price=parseFloat(document.getElementById("f-cur").value)||0;
 const corEl=document.getElementById("f-cor");const corretora=corEl?corEl.value:"";
 const divEl=document.getElementById("f-div");const lastDiv=divEl&&divEl.value?parseFloat(divEl.value):undefined;
@@ -1759,21 +1754,4 @@ function authSubmit(){
 }
 function authForgotPassword(){
   const email=document.getElementById('l-email').value.trim();
-  if(!email){_setAuthError('Digite seu e-mail acima primeiro.');return;}
-  firebase.auth().sendPasswordResetEmail(email)
-    .then(()=>{ _setAuthError(''); alert('Link de redefinição enviado para '+email+'. Verifique sua caixa de entrada.'); })
-    .catch(e=>_setAuthError(_friendlyAuthError(e.code)));
-}
-function authSignOut(){
-  if(!confirm('Sair da conta?'))return;
-  if(fbUnsub){fbUnsub();fbUnsub=null;}
-  firebase.auth().signOut();
-}
-function _showLoginScreen(){document.getElementById('login-screen').classList.remove('hidden');}
-function _hideLoginScreen(){document.getElementById('login-screen').classList.add('hidden');}
-
-/* ---------- STARTUP ---------- */
-fbInit(); // Firebase Auth cuida de tudo via onAuthStateChanged
-</script>
-</body>
-</html>
+  if(!email){_setAuthError('Digite seu e-mail acim
