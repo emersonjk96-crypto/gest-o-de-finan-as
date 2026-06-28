@@ -1281,9 +1281,16 @@ function renderCharts(){
   const prevM=addM(insM,-1);
   const prevExp=sumExp(prevM);
   const diffPct=prevExp?Math.round((expAtual-prevExp)/prevExp*100):null;
-  // KPI cards por cartão — total acumulado em aberto (igual ao Mais)
+  // KPI cards por cartão
+  // Mês passado: total em aberto + faturas daquele mês já pagas (trava o histórico)
+  // Mês atual:   só total em aberto (live)
+  const _today2=todayMonth();
   const cardKpis=D.cards.filter(c=>c.limit).map(c=>{
-    const totalUsedKpi=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
+    const unpaid=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);
+    const paidThisMonth=insM<_today2
+      ?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0)
+      :0;
+    const totalUsedKpi=unpaid+paidThisMonth;
     if(totalUsedKpi===0)return null;
     const pct=Math.round(totalUsedKpi/c.limit*100);
     const over=pct>100;
