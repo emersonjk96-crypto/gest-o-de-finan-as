@@ -1113,6 +1113,15 @@ function renderInvest(){
   document.getElementById("i-list").innerHTML=instHtml||'<div class="card"><div class="empty">Nenhum ativo.</div></div>';
 }
 
+function toggleCatsMore(){
+  const extra=document.getElementById("m-cats-extra");
+  const btn=document.getElementById("m-cats-more-btn");
+  if(!extra||!btn)return;
+  const hidden=extra.style.display==="none";
+  extra.style.display=hidden?"":"none";
+  const rem=document.querySelectorAll("#m-cats .row").length-3;
+  btn.textContent=hidden?"▲ Ocultar":"▼ Ver mais ("+rem+")";
+}
 function toggleCats(){
   const el=document.getElementById("m-cats");
   const btn=document.getElementById("cats-toggle-btn");
@@ -1152,7 +1161,11 @@ function renderMore(){
     let prev2="";if(g.type==="savings"&&g.monthlyGoal&&pct<100){const ms=Math.ceil(Math.max(0,tot-cur)/g.monthlyGoal);prev2=`<div style="font-size:11px;color:var(--muted);margin-top:2px">📅 ~${ms} meses · ${fmt(g.monthlyGoal)}/mês</div>`;}
     return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between"><b onclick="openMeta(${g.id})">${ic} ${g.name}</b><span class="note">${lbl}</span></div><div class="barwrap"><div class="barfill" style="width:${pct}%;background:${g.type==="debt"?"var(--amber)":"var(--green)"}"></div></div>${prev2}</div>`;
   }).join(""):'<div class="empty">Nenhuma meta.</div>';
-  document.getElementById("m-cats").innerHTML=D.cats.map(c=>`<div class="row"><div class="dot" style="background:${catColor(c.name)}"></div><div class="name" onclick="openCat('${c.name}')"><b>${c.name}</b><small>${c.type==="income"?"receita":"despesa"}</small></div></div>`).join("");
+  const _allCatsHtml=D.cats.map(c=>`<div class="row"><div class="dot" style="background:${catColor(c.name)}"></div><div class="name" onclick="openCat('${c.name}')"><b>${c.name}</b><small>${c.type==="income"?"receita":"despesa"}</small></div></div>`);
+  const _catsVisible=_allCatsHtml.slice(0,3).join("");
+  const _catsHidden=_allCatsHtml.slice(3).join("");
+  const _catsBox=document.getElementById("m-cats");
+  if(_catsBox)_catsBox.innerHTML=_catsVisible+(_allCatsHtml.length>3?`<div id="m-cats-extra" style="display:none">${_catsHidden}</div><div style="padding:10px 0 2px;text-align:center"><button class="btn sm ghost" id="m-cats-more-btn" onclick="toggleCatsMore()">▼ Ver mais (${_allCatsHtml.length-3})</button></div>`:"");
 }
 function cardName(id){const c=D.cards.find(x=>x.id===id);return c?c.name:""}
 
@@ -1186,7 +1199,7 @@ function showKpiInvestimentos(inv,pat){
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span style="font-weight:700">% investido</span><span style="font-weight:800;font-size:18px;color:${cor}">${pct}%</span></div>
     </div>
     <p style="font-size:12px;color:var(--muted)">Recomendação: manter ao menos 20% do patrimônio investido.</p>
-    <button class="btn" onclick="closeModal();nav('invest')">Ver investimentos</button>
+    <button class="btn" onclick="closeModal();nav('inv')">Ver investimentos</button>
     <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
 function showKpiCartao(){
@@ -1332,10 +1345,10 @@ function renderCharts(){
   ].filter(Boolean);
   // ---- Alertas inteligentes ----
   const alertas=[];
-  D.cards.forEach(c=>{if(c.limit){const isNu=/nubank/i.test(c.name);const used=D.bills.filter(b=>b.month===insM&&b.type!=="income"&&(b.card===c.id||(isNu&&b.isNubank))).reduce((s,b)=>s+ +b.value,0);const p2=Math.round(used/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used)}/${fmt(c.limit)})`});}});
+  D.cards.forEach(c=>{if(c.limit){const closeDay2=+(c.closeDay||8);const [insY2,insMonthN2]=insM.split('-').map(Number);const closeDate2=new Date(insY2,insMonthN2-1,closeDay2);const isClosed2=new Date()>=closeDate2;const unpaid2=D.bills.filter(b=>!b.paid&&b.isFatura&&b.cardId===c.id).reduce((s,b)=>s+(+b.value),0);const paid2=isClosed2?D.bills.filter(b=>b.paid&&b.isFatura&&b.cardId===c.id&&b.month===insM).reduce((s,b)=>s+(+b.value),0):0;const used2=unpaid2+paid2;const p2=Math.round(used2/c.limit*100);if(p2>=80)alertas.push({t:p2>=100?"danger":"warn",m:`${p2>=100?"🚨":"⚠️"} Cartão ${c.name}: ${p2}% do limite (${fmt(used2)}/${fmt(c.limit)})`});}});
   if(diffPct!==null&&diffPct>20)alertas.push({t:"warn",m:`🔥 Gastos ${diffPct}% acima do mês anterior (${fmt(expAtual)} vs ${fmt(prevExp)})`});
   if(diffPct!==null&&diffPct<=-10)alertas.push({t:"ok",m:`✅ Gastos ${Math.abs(diffPct)}% menores que o mês anterior. Ótimo!`});
-  if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês. Meta recomendada: 20%`});
+  if(incAtual>0&&taxa<0)alertas.push({t:"danger",m:`🚨 Despesas superaram a renda em ${fmt(expAtual-incAtual)} este mês.`});else if(incAtual>0&&taxa<10)alertas.push({t:"warn",m:`📉 Você economizou apenas ${taxa}% da sua renda este mês. Meta recomendada: 20%`});
   if(incAtual>0&&taxa>=30)alertas.push({t:"ok",m:`🎉 Você economizou ${taxa}% da renda este mês. Excelente!`});
   D.metas.forEach(g=>{const{pct}=calcMetaProg(g);if(pct>=80&&pct<100)alertas.push({t:"ok",m:`🎯 Meta "${g.name}" quase lá: ${pct}%`});if(pct>=100)alertas.push({t:"ok",m:`✅ Meta "${g.name}" concluída!`});});
   if(insM===today){const diaAtual=new Date().getDate();if(diaAtual>0&&incAtual>0){const diasMes=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();const proj=Math.round(expAtual/diaAtual*diasMes);if(proj>incAtual*1.1)alertas.push({t:"warn",m:`📊 Projeção de gastos: ${fmt(proj)}. Pode superar sua receita de ${fmt(incAtual)}`});}}
