@@ -1101,12 +1101,18 @@ function renderInvest(){
     corrMap[k].total+=accBRL(a);
     corrMap[k].ap+=accBRL(a);
   });
+  // Cash USD disponível (ex: Nomad) para somar ao total USD
+  const _usdCashAccs=D.accounts.filter(a=>a.isInvest&&a.moeda==="USD");
   const instKeys=Object.keys(corrMap).sort((a,b)=>corrMap[b].total-corrMap[a].total);
   const INST_ICONS={"Nubank":"🟣","Nomad":"🌎","Binance":"🟡","XP":"🔵","BTG":"🔷","Rico":"🟠","Clear":"⚪","Outros":"🏦"};
   let instHtml=instKeys.map(k=>{
     const g=corrMap[k];
     const r=g.total-g.ap;
-    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${INST_ICONS[k]||"🏦"} ${k}</h2><span class="note">${fmt0(g.total)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span></div><div class="card">`;
+    const _usdInv=g.items.filter(i=>i.moeda==="USD").reduce((s,i)=>s+((+i.price||0)*(+i.qtd||0)),0);
+    const _usdCash=_usdCashAccs.filter(a=>(a.banco||a.name)===k||(k==="Nomad"&&a.corretora==="Nomad")).reduce((s,a)=>s+(+a.value||0),0);
+    const _usdTotal=_usdInv+_usdCash;
+    const _usdLine=_usdTotal>0?`<div style="font-size:11px;color:var(--muted);margin-top:1px">US$ ${_usdTotal.toFixed(2)}</div>`:"";
+    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${INST_ICONS[k]||"🏦"} ${k}</h2><div style="text-align:right"><span class="note">${fmt0(g.total)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span>${_usdLine}</div></div><div class="card">`;
     if(g.rfRows)html+=g.rfRows.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>💰 Renda Fixa</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("");
     html+=g.items.map(invRow).join("");
     html+="</div>";
