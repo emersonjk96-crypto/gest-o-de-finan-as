@@ -1057,7 +1057,11 @@ function renderInvest(){
     function grpClasse(g){
       if(!g.items.length&&!g.extra)return"";
       const r2=g.items.reduce((s,it)=>{const b=brlOf(it);return s+(b.at-b.ap);},0);
-      let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${g.icon} ${g.label}</h2><span class="note">${fmt0(g.total)}${g.items.length?` <span class="${r2>=0?"pos":"neg"}">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}</span></div>`;
+      const _gcUSD=g.items.filter(i=>i.moeda==="USD").reduce((s,i)=>s+((+i.price||0)*(+i.qtd||0)),0);
+      const _gcRight=_gcUSD>0
+        ?`<div style="text-align:right"><b>US$ ${_gcUSD.toFixed(2)}</b>${g.items.length?` <span class="${r2>=0?"pos":"neg"}" style="font-size:11px">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}<div style="font-size:11px;color:var(--muted)">≈ ${fmt0(g.total)}</div></div>`
+        :`<span class="note">${fmt0(g.total)}${g.items.length?` <span class="${r2>=0?"pos":"neg"}">(${r2>=0?"+":""}${fmt0(r2)})</span>`:""}</span>`;
+      let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${g.icon} ${g.label}</h2>${_gcRight}</div>`;
       // RF: mostra contas isRF + items tipo RF
       if(g.tipo==="RF"){
         const rows=rfAccs.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>${a.banco||a.moeda||"BRL"}</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("")+g.items.map(invRow).join("");
@@ -1111,8 +1115,10 @@ function renderInvest(){
     const _usdInv=g.items.filter(i=>i.moeda==="USD").reduce((s,i)=>s+((+i.price||0)*(+i.qtd||0)),0);
     const _usdCash=_usdCashAccs.filter(a=>(a.banco||a.name)===k||(k==="Nomad"&&a.corretora==="Nomad")).reduce((s,a)=>s+(+a.value||0),0);
     const _usdTotal=_usdInv+_usdCash;
-    const _usdLine=_usdTotal>0?`<div style="font-size:11px;color:var(--muted);margin-top:1px">US$ ${_usdTotal.toFixed(2)}</div>`:"";
-    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${INST_ICONS[k]||"🏦"} ${k}</h2><div style="text-align:right"><span class="note">${fmt0(g.total)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span>${_usdLine}</div></div><div class="card">`;
+    const _instRight=_usdTotal>0
+      ?`<div style="text-align:right"><b>US$ ${_usdTotal.toFixed(2)}</b> <span class="${r>=0?"pos":"neg"}" style="font-size:11px">(${r>=0?"+":""}${fmt0(r)})</span><div style="font-size:11px;color:var(--muted)">≈ ${fmt0(g.total)}</div></div>`
+      :`<div style="text-align:right"><span class="note">${fmt0(g.total)} <span class="${r>=0?"pos":"neg"}">(${r>=0?"+":""}${fmt0(r)})</span></span></div>`;
+    let html=`<div class="sec-title" style="margin:14px 4px 4px"><h2 style="font-size:14px">${INST_ICONS[k]||"🏦"} ${k}</h2>${_instRight}</div><div class="card">`;
     if(g.rfRows)html+=g.rfRows.map(a=>`<div class="row"><div class="name"><b>${a.name}</b><small>💰 Renda Fixa</small></div><div class="amt">${fmt(accBRL(a))}</div></div>`).join("");
     html+=g.items.map(invRow).join("");
     html+="</div>";
