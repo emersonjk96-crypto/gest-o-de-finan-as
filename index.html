@@ -1012,8 +1012,8 @@ function renderInvest(){
     const divBlock=totalDivBRL>0?`<div style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:4px">💰 Renda passiva estimada</div>${totalDivUSD>0?`<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">💵 Mensal (USD)</span><span style="font-size:12px">US$ ${totalDivUSD.toFixed(2)}</span></div>`:""}<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">🇧🇷 Mensal</span><span style="font-weight:700;color:var(--green)">${fmt0(totalDivBRL)}</span></div><div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">📅 Anual</span><span style="font-size:12px">${fmt0(totalDivBRL*12)}</span></div></div>`:"";
     rendEl.innerHTML=`
       <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:6px;margin-bottom:6px"><span style="font-weight:700">Patrimônio investido</span><span style="font-weight:700">${fmt0(_totSemCriptoMain)}</span></div>
-      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">EUA</span><span>US$ ${_usdPatTotal.toFixed(2)}</span></div>
-      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Brasil</span><span>${fmt0(_braPatTotal)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🇺🇸</span><span>US$ ${_usdPatTotal.toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🇧🇷</span><span>${fmt0(_braPatTotal)}</span></div>
       ${divBlock}
     `;
   }
