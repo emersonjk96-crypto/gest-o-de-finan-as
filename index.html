@@ -990,8 +990,15 @@ async function updatePrices(silent){
   D.invest.forEach(it=>{
     const t=(it.ticker||it.ativo||"").split(" ")[0];
     if(map[t]!=null){it.price=map[t];it.atual=Math.round(map[t]*it.qtd*100)/100;ok++}else miss.push(t);
-    if(divMap[t]!=null)it.lastDiv=divMap[t];
-    if(payDateMap[t])it.lastPayDate=payDateMap[t];
+    // nunca deixa a data de pagamento "confirmada" regredir: se a fonte devolver um par
+    // (valor, data) mais antigo que o que já está salvo (ex.: API com cache desatualizado
+    // respondendo às vezes com o mês anterior), ignora — só avança, nunca volta no tempo.
+    if(divMap[t]!=null&&payDateMap[t]){
+      if(!it.lastPayDate||payDateMap[t]>=it.lastPayDate){it.lastDiv=divMap[t];it.lastPayDate=payDateMap[t];}
+    }else{
+      if(divMap[t]!=null)it.lastDiv=divMap[t];
+      if(payDateMap[t]&&(!it.lastPayDate||payDateMap[t]>=it.lastPayDate))it.lastPayDate=payDateMap[t];
+    }
     if(payFreqMap[t])it.payFreq=payFreqMap[t];
     if(it.lastPayDate)(D.divHistory||[]).forEach(h=>{
       if(!h.received&&h.ticker===t){const payM=it.lastPayDate.substring(0,7);if(payM>=h.month&&it.lastPayDate<=todayStr)h.received=true;}
