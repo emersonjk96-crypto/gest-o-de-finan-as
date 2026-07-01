@@ -455,7 +455,7 @@ const KEY="painel_fin_v2", SKEY="painel_fin_sync";
 const CATCOLORS={"Moradia":"#4f8cff","Transporte":"#ffb547","Alimentação":"#2fd27d","Cartão":"#a472ff","Lazer":"#ff9f43","Saúde":"#43d4e0","Contas":"#8ea0bd","Outros":"#6b7a90","Salário":"#2fd27d","Extra":"#4f8cff","Investimento":"#a472ff","Férias":"#ff9f43","13° Parcela 1":"#43d4e0","13° Parcela 2":"#43d4e0"};
 
 const DEFAULT={
-  goal:0,reserved:0,usd:5.03,usdAuto:true,brapiToken:"",updatedAt:0,nuLabel:"Fatura Nu",
+  goal:0,reserved:0,usd:5.03,usdAuto:true,brapiToken:"",lastPriceUpdate:0,updatedAt:0,nuLabel:"Fatura Nu",
   accounts:[],bills:[],invest:[],months:[],cards:[],metas:[],nuPurchases:[],cardPurchases:[],
   cats:[
     {name:"Moradia",type:"expense"},{name:"Transporte",type:"expense"},{name:"Alimentação",type:"expense"},
@@ -478,6 +478,7 @@ function migrate(){
   if(D.reserved===undefined)D.reserved=0;
   if(D.usdAuto===undefined)D.usdAuto=true;
   if(D.brapiToken===undefined)D.brapiToken="";
+  if(D.lastPriceUpdate===undefined)D.lastPriceUpdate=0;
   if(!Array.isArray(D.nuPurchases))D.nuPurchases=[];
   if(!Array.isArray(D.cardPurchases))D.cardPurchases=[];
   // Migra nuPurchases -> cardPurchases
@@ -776,6 +777,7 @@ function fbInit(){
       D.cards.forEach(c=>recalcCard(c.id));
       render();
       updateUSD(true);
+      setTimeout(maybeAutoUpdatePrices,2500);
     }else{
       cloudBadge('err','offline');
       _showLoginScreen();
@@ -842,6 +844,22 @@ async function updateUSD(silent){
 }
 let _priceUpdating=false;
 function setPriceInfo(txt){const el=document.getElementById("i-priceinfo");if(el)el.textContent=txt;}
+function lastUpdateLabel(){
+  if(!D.lastPriceUpdate)return"Nunca atualizado";
+  const mins=Math.round((Date.now()-D.lastPriceUpdate)/60000);
+  if(mins<1)return"Atualizado agora";
+  if(mins<60)return`Atualizado há ${mins} min`;
+  const hrs=Math.round(mins/60);
+  if(hrs<24)return`Atualizado há ${hrs}h`;
+  return"Atualizado em "+new Date(D.lastPriceUpdate).toLocaleDateString("pt-BR");
+}
+// Auto-atualiza preços e dividendos (ex: novo provento anunciado) sem precisar clicar no botão,
+// no máximo 1x a cada 6h para não estourar limite da API gratuita do brapi.
+function maybeAutoUpdatePrices(){
+  if(!D.brapiToken||!D.invest.length)return;
+  const SIX_H=6*3600*1000;
+  if(Date.now()-(D.lastPriceUpdate||0)>SIX_H)updatePrices(true);
+}
 async function updatePrices(silent){
   if(_priceUpdating)return;
   if(!D.brapiToken){if(!silent){alert("Configure o token do brapi em Mais → Cotações.");nav("more");}return}
@@ -919,6 +937,7 @@ async function updatePrices(silent){
         if(!exists)D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:Math.round(it.lastDiv*it.qtd*10000)/10000,currency:it.moeda||"BRL",qtd:it.qtd,received:false,payDate:it.lastPayDate||null});}
     }
   });
+  D.lastPriceUpdate=Date.now();
   save();
   setPriceInfo(`${ok} atualizado(s) `+new Date().toLocaleTimeString("pt-BR")+(miss.length?` · sem cotação: ${[...new Set(miss)].join(", ")}`:""));
   _priceUpdating=false;
@@ -1200,6 +1219,7 @@ function setInvView(v){
   renderInvest();
 }
 function renderInvest(){
+  if(!_priceUpdating)setPriceInfo(D.brapiToken?lastUpdateLabel():"Configure o token do brapi em Mais → Cotações para atualizar sozinho");
   // Contas isRF (Renda Fixa explícita: Caixinha, CDB, Tesouro)
   const rfAccs=D.accounts.filter(a=>a.isRF);
   const rfVal=rfAccs.reduce((s,a)=>s+accBRL(a),0);
