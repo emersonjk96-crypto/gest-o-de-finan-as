@@ -961,17 +961,22 @@ async function updatePrices(silent){
     });
     if(it.lastDiv&&(it.tipo==="FII"||it.tipo==="REIT"||it.tipo==="ETF")){
       if(!D.divHistory)D.divHistory=[];
-      const freq=it.payFreq||"mensal";
-      const payMonthOk=!it.lastPayDate||(it.lastPayDate.substring(0,7)===curM);
-      const shouldCreate=freq==="mensal"||payMonthOk;
-      if(shouldCreate){
-        const exists=D.divHistory.find(h=>h.ticker===t&&h.month===curM);
-        const newAmt=Math.round(it.lastDiv*it.qtd*10000)/10000;
-        if(!exists){
-          D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:newAmt,currency:it.moeda||"BRL",qtd:it.qtd,received:false,payDate:it.lastPayDate||null});
-        }else if(!exists.received){
-          // sincroniza com dado mais novo (ex.: valor/data anunciados depois que o registro já existia)
-          exists.amountPerShare=it.lastDiv;exists.amount=newAmt;exists.payDate=it.lastPayDate||exists.payDate;
+      // a data/valor só "pertencem" ao mês corrente se o pagamento anunciado realmente cai
+      // neste mês. Um dividendo já pago em junho (dado histórico do Brapi/Yahoo) não vira
+      // confirmação automática do provento de julho — isso é o que causava datas/valores
+      // antigos aparecendo com selo "confirmado" no mês errado.
+      const payIsForCurM=!!(it.lastPayDate&&it.lastPayDate.substring(0,7)===curM);
+      const exists=D.divHistory.find(h=>h.ticker===t&&h.month===curM);
+      const newAmt=Math.round(it.lastDiv*it.qtd*10000)/10000;
+      if(!exists){
+        D.divHistory.push({id:nid(),investId:it.id,ticker:t,month:curM,amountPerShare:it.lastDiv,amount:newAmt,currency:it.moeda||"BRL",qtd:it.qtd,received:false,payDate:payIsForCurM?it.lastPayDate:null});
+      }else if(!exists.received){
+        if(payIsForCurM){
+          // dado novo realmente anunciado para este mês (ex.: StatusInvest) — sincroniza
+          exists.amountPerShare=it.lastDiv;exists.amount=newAmt;exists.payDate=it.lastPayDate;
+        }else if(exists.payDate&&exists.payDate.substring(0,7)!==curM){
+          // limpa contaminação de execuções antigas que carimbaram data de um mês passado
+          exists.payDate=null;
         }
       }
     }
