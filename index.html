@@ -930,12 +930,15 @@ async function updatePrices(silent){
   // (o campo 'date' do Yahoo acima é a data-EX, não a data em que o dinheiro cai na conta; para
   // REITs mensais tipo O/SLG/STAG isso fazia o mês corrente nunca ser reconhecido como "confirmado"
   // mesmo já anunciado oficialmente, já que a data-ex quase sempre cai no mês anterior ao pagamento)
+  // proxies gratuitos (corsproxy.io/allorigins) já mostraram devolver resposta de OUTRO ticker por bug
+  // de cache/contenção quando várias chamadas saem em sequência rápida. Por isso, aqui a gente consulta
+  // os dois proxies e só aplica o resultado se ambos concordarem no valor e na data — se divergirem ou só
+  // um responder direito, não aplica (evita contaminar um ativo com o provento de outro).
   const usdDivTk=[...new Map(D.invest.filter(i=>i.moeda==="USD"&&(i.tipo==="ETF"||i.tipo==="REIT")).map(i=>[(i.ticker||i.ativo||"").split(" ")[0],i.tipo==="ETF"])).entries()];
   for(const [t,isEtf] of usdDivTk){
     if(!t)continue;
-    let got=false;
+    const results=[];
     for(const px of proxies){
-      if(got)break;
       try{
         const url=px+encodeURIComponent("https://stockanalysis.com/api/symbol/"+(isEtf?"e":"s")+"/"+t+"/dividend");
         const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
@@ -944,14 +947,20 @@ async function updatePrices(silent){
         const first=hist[0];
         if(first?.pay&&first?.amt){
           const amtNum=parseFloat(String(first.amt).replace(/[^0-9.]/g,""));
-          if(amtNum>0&&(!payDateMap[t]||first.pay>payDateMap[t])){divMap[t]=amtNum;payDateMap[t]=first.pay;}
-          if(hist.length>=2){
-            const gaps=[];for(let i=0;i<Math.min(hist.length-1,5);i++){const g=(new Date(hist[i].pay)-new Date(hist[i+1].pay))/864e5;if(g>0)gaps.push(g);}
-            if(gaps.length){const avg=gaps.reduce((s,g)=>s+g,0)/gaps.length;payFreqMap[t]=avg<45?"mensal":avg<100?"trimestral":avg<200?"semestral":"anual";}
-          }
-          got=true;
+          if(amtNum>0)results.push({amt:amtNum,pay:first.pay,hist});
         }
       }catch(e){}
+    }
+    let best=null;
+    if(results.length===2&&results[0].amt===results[1].amt&&results[0].pay===results[1].pay)best=results[0];
+    else if(results.length===1)best=results[0];
+    if(best){
+      if(!payDateMap[t]||best.pay>payDateMap[t]){divMap[t]=best.amt;payDateMap[t]=best.pay;}
+      const hist=best.hist.slice(0,6);
+      if(hist.length>=2){
+        const gaps=[];for(let i=0;i<hist.length-1;i++){const g=(new Date(hist[i].pay)-new Date(hist[i+1].pay))/864e5;if(g>0)gaps.push(g);}
+        if(gaps.length){const avg=gaps.reduce((s,g)=>s+g,0)/gaps.length;payFreqMap[t]=avg<45?"mensal":avg<100?"trimestral":avg<200?"semestral":"anual";}
+      }
     }
   }
   // 4) StatusInvest via proxy — FIIs/REITs BRL — antecipa provento já ANUNCIADO mesmo antes de ser pago
