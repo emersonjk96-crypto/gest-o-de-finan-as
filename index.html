@@ -917,6 +917,28 @@ async function updatePrices(silent){
       }catch(e){}
     }
   }
+  // 3) StatusInvest via proxy — FIIs/REITs BRL — antecipa provento já ANUNCIADO mesmo antes de ser pago
+  // (a brapi só retorna dividendsData.cashDividends de proventos já efetivamente pagos, então sem essa
+  // fonte extra o app só saberia de um provento novo depois que ele já tivesse caído na conta)
+  const fiiBrTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD"&&(i.tipo==="FII"||i.tipo==="REIT")).map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
+  const brToIso=d=>{const p=(d||"").split("/");return p.length===3?`${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`:null;};
+  for(const t of fiiBrTk){
+    let got=false;
+    for(const px of proxies){
+      if(got)break;
+      try{
+        const url=px+encodeURIComponent("https://statusinvest.com.br/fii/companytickerprovents?ticker="+t+"&chartProventsType=2");
+        const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+        const j=await r.json();
+        const first=(j.assetEarningsModels||[])[0];
+        const iso=first?.pd?brToIso(first.pd):null;
+        if(iso&&first.v){
+          if(!payDateMap[t]||iso>payDateMap[t]){divMap[t]=first.v;payDateMap[t]=iso;}
+          got=true;
+        }
+      }catch(e){}
+    }
+  }
   const curM=todayMonth();
   const todayStr=new Date().toISOString().split("T")[0];
   D.invest.forEach(it=>{
