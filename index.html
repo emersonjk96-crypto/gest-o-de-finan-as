@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 header{padding:18px 16px 8px;position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 72%,transparent);z-index:20}
 header h1{font-size:20px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 header p{margin:2px 0 0;color:var(--muted);font-size:13px}
-#cloud{font-size:10px;padding:3px 9px;border-radius:20px;background:transparent;border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+#cloud{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:20px;background:transparent;border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 #cloud.on{color:var(--green);border-color:rgba(47,210,125,.4)}
 #cloud.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);animation:_syncPulse 2s ease infinite;display:inline-block}
 #cloud.err{color:var(--red);border-color:rgba(255,93,108,.4)}
@@ -69,6 +69,7 @@ nav button.active{color:var(--accent)} nav button .ic{font-size:18px}
 .sheet-grab{width:36px;height:4px;background:var(--line);border-radius:4px;margin:2px auto 14px}
 .sheet h3{margin:0 0 14px}
 .hcard{border-radius:16px;padding:14px;position:relative;overflow:hidden}
+.blurval{filter:blur(8px);user-select:none}
 .hicon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .trend{font-size:11px;font-weight:600;margin-top:4px}
 .trend.pos{color:var(--green)} .trend.neg{color:var(--red)}
@@ -92,6 +93,9 @@ nav button.active{color:var(--accent)} nav button .ic{font-size:18px}
 .flex{display:flex;gap:10px} .flex>*{flex:1}
 .seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
 .seg div{flex:1;text-align:center;padding:10px;font-size:14px;cursor:pointer;color:var(--muted)}
+.segpill{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:13px;padding:4px;margin-bottom:16px;gap:2px}
+.segpill div{flex:1;text-align:center;padding:9px 4px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-radius:10px;transition:background .15s,color .15s}
+.segpill div.on{background:#fff;color:#0b1220}
 .seg div.on{background:var(--accent);color:#fff;font-weight:600}
 .del{color:var(--red);background:none;border:none;font-size:13px;cursor:pointer}
 .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
@@ -191,7 +195,7 @@ canvas{max-width:100%}
       <div id="h-greeting" style="font-size:13px;color:var(--muted);margin-bottom:2px"></div>
       <h1 style="margin:0">ESC Control</h1>
     </div>
-    <button onclick="schedulePush()" style="background:var(--card2);border:1px solid var(--line);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;margin-top:2px">🔔</button>
+    <button onclick="schedulePush()" style="background:var(--card2);border:1px solid var(--line);border-radius:14px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--txt);font-size:16px;cursor:pointer;flex-shrink:0;margin-top:2px">🔔</button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
     <span id="cloud">offline</span>
@@ -206,10 +210,11 @@ canvas{max-width:100%}
   <!-- HERO: Patrimônio líquido -->
   <div id="h-patrimonio-card" style="background:linear-gradient(135deg,#1e3a6e 0%,#0f1f3d 100%);border-radius:20px;padding:22px 20px 18px;margin-bottom:12px;position:relative;overflow:hidden">
     <div style="position:absolute;right:-30px;top:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(79,140,255,.18) 0%,transparent 70%);pointer-events:none"></div>
-    <div style="position:absolute;right:18px;top:50%;transform:translateY(-50%);opacity:.7;pointer-events:none">
-      <svg width="72" height="44" viewBox="0 0 72 44" fill="none"><polyline points="0,40 12,32 24,36 38,22 52,16 72,4" stroke="rgba(79,140,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="72" cy="4" r="3.5" fill="#4f8cff"/><line x1="0" y1="44" x2="72" y2="44" stroke="rgba(79,140,255,.15)" stroke-width="1"/></svg>
+    <div style="position:absolute;right:14px;top:14px;bottom:14px;width:150px;opacity:.9;pointer-events:none" id="h-pat-chart"></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;color:#7a9fd4;text-transform:uppercase;letter-spacing:.12em">Patrimônio líquido</div>
+      <span style="font-size:12px;opacity:.6;cursor:pointer" onclick="toggleValuesHidden()">👁</span>
     </div>
-    <div style="font-size:10px;font-weight:700;color:#7a9fd4;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">Patrimônio líquido</div>
     <div id="h-patrimonio" style="font-size:34px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:12px;line-height:1">R$ 0</div>
     <div id="h-sobra-badge" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(47,210,125,.15);color:var(--green)">
       <span id="h-sobra-arrow">↑</span><span id="h-sobra-sub">R$ 0 este mês</span>
@@ -218,25 +223,30 @@ canvas{max-width:100%}
   </div>
 
   <!-- Saldo disponível -->
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px">
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px;cursor:pointer" onclick="nav('acc')">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <div class="hicon" style="background:rgba(47,210,125,.15);color:var(--green);font-size:15px">💰</div>
+        <div class="hicon" style="width:36px;height:36px;border-radius:12px;background:rgba(47,210,125,.15);color:var(--green);font-size:16px">💳</div>
         <div>
           <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:2px">Saldo disponível</div>
           <div style="font-size:24px;font-weight:800;color:var(--text)" id="h-total">R$ 0</div>
         </div>
       </div>
-      <div id="h-meta-pct-badge" style="font-size:11px;color:var(--muted);flex-shrink:0">0% da meta</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <div id="h-meta-pct-badge" style="font-size:11px;color:var(--muted)">0% da meta</div>
+      </div>
     </div>
-    <div style="background:rgba(255,255,255,.07);border-radius:8px;height:5px;overflow:hidden">
-      <div id="h-saldo-bar" style="height:100%;width:0%;border-radius:8px;background:var(--green);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="flex:1;background:rgba(255,255,255,.07);border-radius:8px;height:5px;overflow:hidden">
+        <div id="h-saldo-bar" style="height:100%;width:0%;border-radius:8px;background:var(--green);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+      </div>
+      <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
     </div>
   </div>
 
   <!-- Grid 2x2 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-    <div class="hcard" style="background:linear-gradient(160deg,rgba(255,93,108,.11),rgba(255,93,108,.02));border:1px solid rgba(255,93,108,.2)">
+    <div class="hcard" style="background:var(--card2);border:1px solid var(--line)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="hicon" style="background:rgba(255,93,108,.18);color:var(--red);font-size:15px;font-weight:800">↓</div>
         <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Despesas<br>do mês</div>
@@ -245,7 +255,7 @@ canvas{max-width:100%}
       <div id="h-exp-trend" class="trend"></div>
       <div id="h-exp-spark" style="position:absolute;right:10px;bottom:10px;opacity:.85"></div>
     </div>
-    <div class="hcard" style="background:linear-gradient(160deg,rgba(47,210,125,.11),rgba(47,210,125,.02));border:1px solid rgba(47,210,125,.2);cursor:pointer" onclick="showReceitasScreen()">
+    <div class="hcard" style="background:var(--card2);border:1px solid var(--line);cursor:pointer" onclick="showReceitasScreen()">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px">
           <div class="hicon" style="background:rgba(47,210,125,.18);color:var(--green);font-size:15px;font-weight:800">↑</div>
@@ -257,21 +267,21 @@ canvas{max-width:100%}
       <div id="h-receita-prev" style="font-size:11px;margin-top:3px"></div>
       <div id="h-inc-spark" style="position:absolute;right:10px;bottom:10px;opacity:.85"></div>
     </div>
-    <div class="hcard" style="background:linear-gradient(160deg,rgba(245,158,11,.11),rgba(245,158,11,.02));border:1px solid rgba(245,158,11,.2);cursor:pointer" onclick="showFaltaPagarScreen()">
+    <div class="hcard" style="background:var(--card2);border:1px solid var(--line);cursor:pointer" onclick="showFaltaPagarScreen()">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="hicon" style="background:rgba(245,158,11,.18);font-size:15px">📋</div>
+          <div class="hicon" style="background:rgba(79,140,255,.18);color:var(--accent);font-size:15px">📄</div>
           <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Falta<br>pagar</div>
         </div>
         <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
       </div>
       <div style="font-size:20px;font-weight:800" id="h-falta">R$ 0</div>
-      <div id="h-falta-count" style="font-size:11px;color:#f59e0b;font-weight:700;margin-top:3px"></div>
+      <div id="h-falta-count" style="font-size:11px;color:var(--accent);font-weight:700;margin-top:3px"></div>
     </div>
-    <div class="hcard" style="background:linear-gradient(160deg,rgba(79,140,255,.14),rgba(79,140,255,.03));border:1px solid rgba(79,140,255,.3);cursor:pointer;box-shadow:0 0 24px rgba(79,140,255,.1)" onclick="showResultadoScreen()">
+    <div class="hcard" style="background:var(--card2);border:1px solid rgba(79,140,255,.3);cursor:pointer" onclick="showResultadoScreen()">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px">
-          <div class="hicon" style="background:rgba(79,140,255,.2);font-size:15px">💡</div>
+          <div class="hicon" style="background:rgba(212,168,60,.22);color:#e0b84d;font-size:15px">💡</div>
           <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Resultado<br>do mês</div>
         </div>
         <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
@@ -294,9 +304,9 @@ canvas{max-width:100%}
     <div style="background:rgba(255,255,255,.07);border-radius:8px;height:8px;overflow:hidden;margin-bottom:10px">
       <div class="barfill" id="h-meta-bar" style="width:0%;height:100%;border-radius:8px;background:var(--purple);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted)">
-      <span id="h-meta-falta"></span>
-      <span>Reservado p/ FIIs: <b id="h-reserved">R$ 0</b></span>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
+      <span id="h-meta-falta" style="color:var(--purple);font-weight:600"></span>
+      <span style="color:var(--muted)">👥 Reservado p/ FIIs: <b id="h-reserved">R$ 0</b></span>
     </div>
   </div>
 
@@ -739,7 +749,7 @@ const DEFAULT_SYNC_ID="9bbfef9b-57bd-4aa4-be3emqtzqv55";
 if(!localStorage.getItem(SKSTORE))localStorage.setItem(SKSTORE,DEFAULT_SYNC_ID);
 let syncId=localStorage.getItem(SKSTORE)||DEFAULT_SYNC_ID;
 let fbDb=null,fbUnsub=null,pushTimer2=null;
-function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.textContent=t}}
+function cloudBadge(s,t){const e=document.getElementById("cloud");if(e){e.className=s;e.innerHTML=t+(s==="on"?' <span style="opacity:.55;font-size:9px;cursor:pointer" onclick="event.stopPropagation();schedulePush()">⟳</span>':'')}}
 function _showLoginScreen(){const el=document.getElementById("login-screen");if(el)el.classList.remove("hidden");}
 function _hideLoginScreen(){const el=document.getElementById("login-screen");if(el)el.classList.add("hidden");}
 function fbInit(){
@@ -769,7 +779,7 @@ function fbInit(){
 function fbListen(pushFirst){
   if(fbUnsub){fbUnsub();fbUnsub=null;}
   if(!fbDb)return;
-  cloudBadge("","conectando...");
+  cloudBadge("","Conectando...");
   const ref=fbDb.collection("syncs").doc(syncId);
   if(pushFirst){fbPush();}
   fbUnsub=ref.onSnapshot(function(snap){
@@ -778,7 +788,7 @@ function fbListen(pushFirst){
       if((rem.updatedAt||0)>(D.updatedAt||0)){D=rem;migrate();saveLocal();render();}
       else if((rem.updatedAt||0)<(D.updatedAt||0)){fbPush();}
     }else{fbPush();}
-    cloudBadge("on","sincronizado");
+    cloudBadge("on","Sincronizado agora");
   },function(){cloudBadge("err","erro");});
 }
 function fbPush(){if(!fbDb)return;fbDb.collection("syncs").doc(syncId).set({data:D,updatedAt:D.updatedAt||Date.now()}).catch(function(){});}
@@ -941,6 +951,21 @@ function sparkSvg(vals,color){
   const pts=vals.map((v,i)=>{const x=(i/(vals.length-1))*w;const y=h-((v-min)/range)*h;return x.toFixed(1)+","+y.toFixed(1);}).join(" ");
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/></svg>`;
 }
+function toggleValuesHidden(){const el=document.getElementById("h-patrimonio");if(el)el.classList.toggle("blurval");}
+function patSpark(){
+  const entries=Object.entries(D.patHistory||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-7);
+  const vals=entries.map(e=>e[1]);
+  const w=150,h=64;
+  if(vals.length<2){
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="0,${h-8} ${(w*.2).toFixed(1)},${h-18} ${(w*.4).toFixed(1)},${h-14} ${(w*.6).toFixed(1)},${h-32} ${(w*.8).toFixed(1)},${h-40} ${w},${h-8}" stroke="rgba(79,140,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${w}" cy="${h-8}" r="3.5" fill="#4f8cff"/></svg>`;
+  }
+  const max=Math.max(...vals),min=Math.min(...vals),range=(max-min)||1;
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*w,h-8-((v-min)/range)*(h-20)]);
+  const line=pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const area="M0,"+h+" L"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" L")+" L"+w+","+h+" Z";
+  const last=pts[pts.length-1];
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><defs><linearGradient id="patGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4f8cff" stop-opacity=".35"/><stop offset="100%" stop-color="#4f8cff" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#patGrad)"/><polyline points="${line}" stroke="#4f8cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="#fff" stroke="#4f8cff" stroke-width="2"/></svg>`;
+}
 
 /* ---------- RENDER ---------- */
 function render(){
@@ -950,7 +975,9 @@ function render(){
   const falta=exp-pagoExp;
   const totInv=D.accounts.filter(a=>a.isInvest).reduce((s,a)=>s+accBRL(a),0);
   const patrimonio=tot+totInv;
-  document.getElementById("sub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const _now=new Date();
+  const _wk=_now.toLocaleDateString("pt-BR",{weekday:"long"});
+  document.getElementById("sub").textContent=_now.toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric"})+" · "+_wk.charAt(0).toUpperCase()+_wk.slice(1);
   const _gh=new Date().getHours();const _gEl=document.getElementById("h-greeting");
   if(_gEl)_gEl.textContent=(_gh<12?"Bom dia":_gh<18?"Boa tarde":"Boa noite")+", "+(D.userName||"Emerson")+" 👋";
   document.getElementById("h-patrimonio").textContent=fmt0(patrimonio);
@@ -1006,10 +1033,12 @@ function render(){
     const dueParts=(b.due||"").split('-');
     const dueDay=dueParts[2]||'';
     const dueMon=dueParts[1]?_DMON[parseInt(dueParts[1])-1]:'';
-    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.8)';
-    const pillTxt=overdue?brDate(b.due):dd<=7?'em '+dd+'d':brDate(b.due);
+    const pillBg=overdue?'rgba(255,93,108,.18)':dd<=7?'rgba(245,158,11,.18)':'rgba(79,140,255,.15)';
+    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.9)';
+    const pillTxt=brDate(b.due);
     const isLast=_idx===prox.length-1;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;${isLast?'':'border-bottom:1px solid var(--line)'}">
+    const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:`openTx(${b.id})`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;cursor:pointer;${isLast?'':'border-bottom:1px solid var(--line)'}" onclick="${clickFn}">
       <div style="min-width:32px;text-align:center;flex-shrink:0">
         <div style="font-size:17px;font-weight:800;color:${overdue?'var(--red)':'var(--text)'};line-height:1">${dueDay}</div>
         <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">${dueMon}</div>
@@ -1021,11 +1050,13 @@ function render(){
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:13px;font-weight:700">${fmt(b.value)}</div>
-        <div style="font-size:10px;font-weight:600;color:${pillColor};margin-top:2px">${pillTxt}</div>
       </div>
+      <span style="background:${pillBg};color:${pillColor};font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;flex-shrink:0">${pillTxt}</span>
+      <span style="color:var(--muted);opacity:.4;font-size:14px;flex-shrink:0">›</span>
     </div>`;
   }).join(""):'<div class="empty" style="padding:16px 0">Nada a pagar 🎉</div>';
   savePatSnap();
+  const _pc=document.getElementById("h-pat-chart");if(_pc)_pc.innerHTML=patSpark();
   renderBills();renderAccounts();renderInvest();renderMore();if(typeof renderAuth==="function")renderAuth();
   document.getElementById("cfg-goal").value=D.goal;
   document.getElementById("cfg-reserved").value=D.reserved||0;
@@ -1380,22 +1411,23 @@ function showReceitasScreen(tab){
   const row=(b,received)=>{
     const acc=b.card?D.accounts.find(a=>a.id==b.card)?.name:"";
     const em=catEmoji(b.cat||(received?"Salário":"Extra"));
-    return `<div class="lrow"><div class="avatar" style="background:${received?"rgba(47,210,125,.15)":"rgba(245,158,11,.15)"}">${em}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11px;color:var(--muted)">${brDate(b.due)||""}${acc?" · "+acc:""}</div></div>${received?'<span style="color:var(--green);font-size:14px;flex-shrink:0">✓</span>':""}<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:700;color:${received?"var(--green)":"#f59e0b"}">${received?"":"+ "}${fmt(b.value)}</div></div></div>`;
+    return `<div class="lrow"><div class="avatar" style="background:${received?"rgba(47,210,125,.15)":"rgba(245,158,11,.15)"}">${em}</div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11px;color:var(--muted)">${brDate(b.due)||""}${acc?" · "+acc:""}</div></div>${received?'<div style="width:18px;height:18px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;color:#06351f;flex-shrink:0;font-weight:800">✓</div>':""}<div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:700;color:${received?"var(--green)":"#f59e0b"}">${received?"":"+ "}${fmt(b.value)}</div></div></div>`;
   };
   const secRec=recebidas.length?`<div class="listcard">${recebidas.map(b=>row(b,true)).join("")}</div>`:"";
   const secPrev=previstas.length?`<div class="listcard">${previstas.map(b=>row(b,false)).join("")}</div>`:"";
+  const cnt=(n)=>`<span style="background:var(--card2);color:var(--text);border-radius:10px;padding:1px 8px;font-size:11px;margin-left:6px">${n}</span>`;
   let body="";
   if(tab==="recebidas"){
-    body=recebidas.length?`<div class="sectlbl"><span>Recebidas</span><span>${recebidas.length}</span></div>${secRec}`:'<div class="empty">Nenhuma receita recebida</div>';
+    body=recebidas.length?`<div class="sectlbl"><span>Recebidas${cnt(recebidas.length)}</span><span>${fmt(totRec)}</span></div>${secRec}`:'<div class="empty">Nenhuma receita recebida</div>';
   }else if(tab==="previstas"){
-    body=previstas.length?`<div class="sectlbl"><span>Previstas</span><span>${previstas.length}</span></div>${secPrev}`:'<div class="empty">Nenhuma prevista</div>';
+    body=previstas.length?`<div class="sectlbl"><span>Previstas${cnt(previstas.length)}</span><span>+${fmt(totPrev)}</span></div>${secPrev}<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0 16px">ℹ️ Valores previstos podem sofrer alterações.</div>`:'<div class="empty">Nenhuma prevista</div>';
   }else{
-    body=(recebidas.length?`<div class="sectlbl"><span>Recebidas</span><span>${fmt(totRec)}</span></div>${secRec}`:"")+
-         (previstas.length?`<div class="sectlbl"><span>Previstas</span><span>+${fmt(totPrev)}</span></div>${secPrev}`:"")+
+    body=(recebidas.length?`<div class="sectlbl"><span>Recebidas${cnt(recebidas.length)}</span><span>${fmt(totRec)}</span></div>${secRec}`:"")+
+         (previstas.length?`<div class="sectlbl"><span>Previstas${cnt(previstas.length)}</span><span>+${fmt(totPrev)}</span></div>${secPrev}<div style="font-size:11px;color:var(--muted);text-align:center;padding:4px 0 16px">ℹ️ Valores previstos podem sofrer alterações.</div>`:"")+
          (!recebidas.length&&!previstas.length?'<div class="empty">Nenhum lançamento neste mês</div>':"");
   }
   const seg=(k,l)=>`<div class="${tab===k?"on":""}" onclick="showReceitasScreen('${k}')">${l}</div>`;
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(47,210,125,.15);color:var(--green);font-size:18px;font-weight:800">↑</div><div><div style="font-size:16px;font-weight:800">Receitas recebidas</div><div style="font-size:12px;color:var(--muted)">${mLabel(realM)}</div></div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(47,210,125,.15);color:var(--green);font-size:18px;font-weight:800">↑</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Receitas recebidas</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(47,210,125,.14),rgba(47,210,125,.03));border:1px solid rgba(47,210,125,.25)">
     <div class="stat2" style="margin-bottom:12px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Recebidas</div><div class="v" style="color:var(--green)">${fmt0(totRec)}</div><div class="s">${recebidas.length} lançamento${recebidas.length!==1?"s":""}</div></div>
@@ -1406,7 +1438,7 @@ function showReceitasScreen(tab){
       ${sparkSvg(incSeries,"var(--green)")}
     </div>
   </div>
-  <div class="seg">${seg("todas","Todas")}${seg("recebidas","Recebidas")}${seg("previstas","Previstas")}</div>
+  <div class="segpill">${seg("todas","Todas")}${seg("recebidas","Recebidas")}${seg("previstas","Previstas")}</div>
   ${body}
   <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
 }
@@ -1416,8 +1448,7 @@ function showFaltaPagarScreen(){
   const monthBills=D.bills.filter(b=>b.month===realM&&b.type!=="income");
   const pendentes=monthBills.filter(b=>!b.paid).sort((a,b_)=>(a.due||"").localeCompare(b_.due||""));
   const total=pendentes.reduce((s,b)=>s+(+b.value),0);
-  const paidCount=monthBills.length-pendentes.length;
-  const progPct=monthBills.length?Math.round(paidCount/monthBills.length*100):0;
+  const progPct=monthBills.length?Math.round(pendentes.length/monthBills.length*100):0;
   const vencBreveList=pendentes.filter(b=>b.due&&daysTo(b.due)<=7&&b.due>=today);
   const vencBreve=vencBreveList.length;
   const vencBreveTotal=vencBreveList.reduce((s,b)=>s+(+b.value),0);
@@ -1426,18 +1457,20 @@ function showFaltaPagarScreen(){
     const overdue=b.due<today,dd=daysTo(b.due);
     const isFat=!!(b.isFatura&&b.cardId);const fatCard=isFat?D.cards.find(x=>x.id===b.cardId):null;
     const dotColor=isFat&&fatCard?fatCard.color:catColor(b.cat);
-    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.7)';
-    const pillTxt=overdue?'Atrasada':dd<=7?'em '+dd+'d':brDate(b.due);
+    const pillBg=overdue?'rgba(255,93,108,.18)':dd<=7?'rgba(245,158,11,.18)':'rgba(79,140,255,.15)';
+    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.9)';
+    const pillTxt=brDate(b.due);
     const dueParts=(b.due||"").split('-');const dueDay=dueParts[2]||'';const _DMON=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];const dueMon=dueParts[1]?_DMON[parseInt(dueParts[1])-1]:'';
-    return `<div class="lrow"><div class="dbadge"><b style="color:${overdue?"var(--red)":"var(--text)"}">${dueDay}</b><span>${dueMon}</span></div><div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11px;color:var(--muted)">${b.cat||""}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13.5px;font-weight:700">${fmt(b.value)}</div><div style="font-size:10px;font-weight:600;color:${pillColor}">${pillTxt}</div></div></div>`;
+    const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:`openTx(${b.id})`;
+    return `<div class="lrow" style="cursor:pointer" onclick="closeModal();${clickFn}"><div class="dbadge"><b style="color:${overdue?"var(--red)":"var(--text)"}">${dueDay}</b><span>${dueMon}</span></div><div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11px;color:var(--muted)">${b.cat||""}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13.5px;font-weight:700">${fmt(b.value)}</div></div><span style="background:${pillBg};color:${pillColor};font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;flex-shrink:0">${pillTxt}</span><span style="color:var(--muted);opacity:.4;font-size:14px;flex-shrink:0">›</span></div>`;
   }).join(""):'<div class="empty">Nada a pagar 🎉</div>';
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(245,158,11,.15);font-size:18px">📋</div><div><div style="font-size:16px;font-weight:800">Falta pagar</div><div style="font-size:12px;color:var(--muted)">${mLabel(realM)}</div></div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(79,140,255,.15);color:var(--accent);font-size:18px">📄</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Falta pagar</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(79,140,255,.14),rgba(79,140,255,.03));border:1px solid rgba(79,140,255,.25)">
     <div class="stat2" style="margin-bottom:14px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Total a pagar</div><div class="v">${fmt0(total)}</div><div class="s">${pendentes.length} conta${pendentes.length!==1?"s":""}</div></div>
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Vencendo em breve</div><div class="v" style="color:#f59e0b">${fmt0(vencBreveTotal)}</div><div class="s">${vencBreve} conta${vencBreve!==1?"s":""} até ${_d7.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</div></div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${paidCount} de ${monthBills.length} contas do mês pagas</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${pendentes.length} de ${monthBills.length} contas do mês</div>
     <div style="background:rgba(0,0,0,.2);border-radius:8px;height:8px;overflow:hidden"><div style="height:100%;width:${progPct}%;background:var(--accent);border-radius:8px;transition:width .5s"></div></div>
   </div>
   <div class="sectlbl"><span>Contas pendentes</span><span style="background:var(--card2);color:var(--text);border-radius:10px;padding:1px 8px">${pendentes.length}</span></div>
@@ -1458,7 +1491,7 @@ function showResultadoScreen(){
   const prevSobra=sumInc(prevM)-sumExp(prevM);
   const variacao=sobra-prevSobra;
   const variacaoPct=prevSobra!==0?Math.round((variacao/Math.abs(prevSobra))*100):(sobra!==0?100:0);
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(245,158,11,.2);font-size:18px">💡</div><div><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted)">${mLabel(realM)}</div></div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(212,168,60,.22);color:#e0b84d;font-size:18px">💡</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(245,158,11,.16),rgba(245,158,11,.03));border:1px solid rgba(245,158,11,.28)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
@@ -1480,7 +1513,7 @@ function showResultadoScreen(){
   <div class="sectlbl">Comparativo com meses anteriores</div>
   <div class="listcard" style="display:flex;padding:0">
     <div style="flex:1;padding:14px;border-right:1px solid var(--line)"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${mLabel(prevM)}</div><div style="font-size:17px;font-weight:800;color:${prevSobra>=0?"var(--green)":"var(--red)"}">${prevSobra>=0?"+":""}${fmt0(prevSobra)}</div></div>
-    <div style="flex:1;padding:14px;display:flex;flex-direction:column;justify-content:center"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Variação</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:17px;font-weight:800;color:${variacao>=0?"var(--green)":"var(--red)"}">${variacao>=0?"+":""}${fmt0(variacao)}</span><span style="font-size:14px">${variacao>=0?"↗️":"↘️"}</span></div></div>
+    <div style="flex:1;padding:14px;display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Variação</div><span style="font-size:17px;font-weight:800;color:${variacao>=0?"var(--green)":"var(--red)"}">${variacao>=0?"+":""}${fmt0(variacao)}</span></div><div style="width:26px;height:26px;border-radius:50%;background:${variacao>=0?"rgba(47,210,125,.18)":"rgba(255,93,108,.18)"};display:flex;align-items:center;justify-content:center;color:${variacao>=0?"var(--green)":"var(--red)"};font-size:13px;flex-shrink:0">${variacao>=0?"↑":"↓"}</div></div>
   </div>
   <button class="btn ghost" onclick="closeModal()">Fechar</button>`);
   setTimeout(()=>{
