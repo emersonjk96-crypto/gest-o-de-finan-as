@@ -16,11 +16,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#0b1220;--card:#131c2e;--card2:#1a2638;--line:#243349;--txt:#e8eef7;--muted:#8ea0bd;--accent:#4f8cff;--green:#2fd27d;--red:#ff5d6c;--amber:#ffb547;--purple:#a472ff;--shadow:0 6px 24px rgba(0,0,0,.35)}
+:root{--bg:#080e1a;--card:#111b2d;--card2:#17233a;--line:rgba(255,255,255,.07);--line-soft:rgba(255,255,255,.05);--txt:#eef2f8;--muted:#8497b5;--accent:#4f8cff;--green:#34d399;--red:#ff6b7a;--amber:#ffb547;--purple:#a78bfa;--gold:#e2b04d;--shadow:0 12px 32px rgba(0,0,0,.4)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);padding-bottom:92px;font-size:15px}
-header{padding:18px 16px 8px;position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 72%,transparent);z-index:20}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);padding-bottom:96px;font-size:15px;-webkit-font-smoothing:antialiased}
+button,.hcard,.lrow,.listcard,.mtab,.segpill div,.seg div,#cloud{-webkit-tap-highlight-color:transparent}
+header{padding:20px 16px 10px;position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 72%,transparent);z-index:20}
 header h1{font-size:20px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 #cloud{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:20px;background:transparent;border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
@@ -28,8 +29,8 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 #cloud.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);animation:_syncPulse 2s ease infinite;display:inline-block}
 #cloud.err{color:var(--red);border-color:rgba(255,93,108,.4)}
 @keyframes _syncPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
-.wrap{padding:0 14px;max-width:560px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;box-shadow:var(--shadow)}
+.wrap{padding:0 16px;max-width:560px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:var(--shadow)}
 .hero{background:linear-gradient(135deg,#1c3a6e,#16243d)}
 .hero .big{font-size:30px;font-weight:800;letter-spacing:.3px}
 .hero .lbl{color:#bcd0f0;font-size:13px;margin-bottom:2px}
@@ -37,7 +38,7 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mini{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:12px}
 .mini .lbl{color:var(--muted);font-size:12px} .mini .val{font-size:18px;font-weight:700;margin-top:3px}
-.sec-title{display:flex;justify-content:space-between;align-items:center;margin:22px 4px 8px}
+.sec-title{display:flex;justify-content:space-between;align-items:center;margin:28px 4px 10px}
 .sec-title h2{font-size:16px;margin:0}
 .row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:none}
@@ -49,8 +50,11 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 .chk.on{background:var(--green);border-color:var(--green);color:#06351f}
 .pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
 .pill.ok{background:rgba(47,210,125,.15);color:var(--green)} .pill.no{background:rgba(255,93,108,.15);color:var(--red)} .pill.soon{background:rgba(255,181,71,.15);color:var(--amber)}
-.btn{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}
-.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)} .btn.sm{padding:6px 10px;font-size:12.5px}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:13px;padding:12px 16px;font-size:14.5px;font-weight:600;cursor:pointer;transition:transform .12s ease,opacity .12s ease}
+.btn:active{transform:scale(.97);opacity:.9}
+.btn.ghost{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--txt)} .btn.sm{padding:7px 12px;font-size:12.5px;border-radius:10px}
+.chk{transition:transform .12s ease} .chk:active{transform:scale(.9)}
+.mtab{transition:transform .12s ease} .mtab:active{transform:scale(.96)}
 .btn.danger{background:rgba(255,93,108,.15);color:var(--red);border:1px solid rgba(255,93,108,.3)}
 .pos{color:var(--green)} .neg{color:var(--red)}
 nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30}
@@ -62,32 +66,34 @@ nav button.active{color:var(--accent)} nav button .ic{font-size:18px}
 .monthbar::-webkit-scrollbar{display:none}
 .mtab{flex:0 0 auto;padding:7px 13px;border-radius:20px;background:var(--card2);border:1px solid var(--line);color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap}
 .mtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.modal{position:fixed;inset:0;background:rgba(4,8,18,.66);display:none;align-items:flex-end;z-index:50}
-.modal.open{display:flex;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.sheet{background:var(--card);width:100%;max-width:560px;margin:0 auto;border-radius:26px 26px 0 0;padding:10px 16px 26px;border:1px solid var(--line);max-height:94vh;overflow-y:auto;animation:sheetUp .32s cubic-bezier(.16,1,.3,1)}
+.modal{position:fixed;inset:0;background:rgba(3,6,14,.72);display:none;align-items:flex-end;z-index:50}
+.modal.open{display:flex;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.sheet{background:linear-gradient(180deg,#152238,var(--card) 40%);width:100%;max-width:560px;margin:0 auto;border-radius:32px 32px 0 0;padding:12px 20px 32px;border:1px solid rgba(255,255,255,.08);border-bottom:none;box-shadow:0 -20px 60px rgba(0,0,0,.5);max-height:94vh;overflow-y:auto;animation:sheetUp .36s cubic-bezier(.16,1,.3,1)}
 @keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
-.sheet-grab{width:36px;height:4px;background:var(--line);border-radius:4px;margin:2px auto 14px}
+.sheet-grab{width:38px;height:4.5px;background:rgba(255,255,255,.16);border-radius:4px;margin:4px auto 18px}
 .sheet h3{margin:0 0 14px}
-.hcard{border-radius:16px;padding:14px;position:relative;overflow:hidden}
+.hcard{border-radius:20px;padding:18px;position:relative;overflow:hidden;transition:transform .15s ease,background .15s ease}
+.hcard:active{transform:scale(.97)}
 .blurval{filter:blur(8px);user-select:none}
-.hicon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.trend{font-size:11px;font-weight:600;margin-top:4px}
+.hicon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.trend{font-size:11.5px;font-weight:600;margin-top:5px;letter-spacing:.01em}
 .trend.pos{color:var(--green)} .trend.neg{color:var(--red)}
-.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.dbadge{min-width:34px;text-align:center;flex-shrink:0}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.dbadge{min-width:36px;text-align:center;flex-shrink:0}
 .dbadge b{display:block;font-size:16px;font-weight:800;line-height:1.1}
-.dbadge span{display:block;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.mheader{display:flex;align-items:center;gap:12px;margin-bottom:16px;position:sticky;top:0;background:var(--card);padding:2px 0 10px;z-index:2}
-.hbox{border-radius:16px;padding:16px;margin-bottom:16px;position:relative;overflow:hidden}
-.stat2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.stat2 .c{background:var(--card2);border-radius:12px;padding:12px}
-.stat2 .c .l{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-.stat2 .c .v{font-size:20px;font-weight:800}
-.stat2 .c .s{font-size:11px;color:var(--muted);margin-top:2px}
-.sectlbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.listcard{background:var(--card2);border-radius:12px;padding:0 12px;margin-bottom:16px}
-.lrow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dbadge span{display:block;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
+.mheader{display:flex;align-items:center;gap:14px;margin-bottom:22px;position:sticky;top:0;background:var(--card);padding:4px 0 12px;z-index:2}
+.hbox{border-radius:22px;padding:22px;margin-bottom:22px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.stat2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.stat2 .c{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:14px}
+.stat2 .c .l{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.stat2 .c .v{font-size:21px;font-weight:800;letter-spacing:-.2px}
+.stat2 .c .s{font-size:11.5px;color:var(--muted);margin-top:3px}
+.sectlbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:24px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+.listcard{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:0 16px;margin-bottom:8px}
+.lrow{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-soft);transition:opacity .1s}
 .lrow:last-child{border-bottom:none}
+.lrow:active{opacity:.6}
 .fld{margin-bottom:12px} .fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
 .fld input,.fld select{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--txt);font-size:15px}
 .flex{display:flex;gap:10px} .flex>*{flex:1}
@@ -208,101 +214,99 @@ canvas{max-width:100%}
 <!-- INÍCIO -->
 <div class="page active" id="p-home">
   <!-- HERO: Patrimônio líquido -->
-  <div id="h-patrimonio-card" style="background:linear-gradient(135deg,#1e3a6e 0%,#0f1f3d 100%);border-radius:20px;padding:22px 20px 18px;margin-bottom:12px;position:relative;overflow:hidden">
-    <div style="position:absolute;right:-30px;top:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(79,140,255,.18) 0%,transparent 70%);pointer-events:none"></div>
-    <div style="position:absolute;right:14px;top:14px;bottom:14px;width:150px;opacity:.9;pointer-events:none" id="h-pat-chart"></div>
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:700;color:#7a9fd4;text-transform:uppercase;letter-spacing:.12em">Patrimônio líquido</div>
-      <span style="font-size:12px;opacity:.6;cursor:pointer" onclick="toggleValuesHidden()">👁</span>
+  <div id="h-patrimonio-card" style="background:radial-gradient(120% 140% at 100% 0%,#204a8c 0%,#132c58 42%,#0a1830 100%);border-radius:24px;padding:26px 24px 22px;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 16px 40px rgba(10,30,70,.35),inset 0 1px 0 rgba(255,255,255,.06)">
+    <div style="position:absolute;right:-40px;top:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(120,170,255,.22) 0%,transparent 70%);pointer-events:none;filter:blur(2px)"></div>
+    <div style="position:absolute;right:16px;top:18px;bottom:18px;width:44%;opacity:.95;pointer-events:none" id="h-pat-chart"></div>
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;position:relative">
+      <div style="font-size:10.5px;font-weight:700;color:#93b3e8;text-transform:uppercase;letter-spacing:.13em">Patrimônio líquido</div>
+      <span style="font-size:12px;opacity:.5;cursor:pointer" onclick="toggleValuesHidden()">👁</span>
     </div>
-    <div id="h-patrimonio" style="font-size:34px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:12px;line-height:1">R$ 0</div>
-    <div id="h-sobra-badge" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(47,210,125,.15);color:var(--green)">
+    <div id="h-patrimonio" style="font-size:38px;font-weight:800;color:#fff;letter-spacing:-.8px;margin-bottom:14px;line-height:1;position:relative">R$ 0</div>
+    <div id="h-sobra-badge" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.18);color:var(--green);position:relative">
       <span id="h-sobra-arrow">↑</span><span id="h-sobra-sub">R$ 0 este mês</span>
     </div>
     <div style="display:none"><span id="h-pat-disp"></span><span id="h-pat-inv"></span><span id="h-livre"></span></div>
   </div>
 
   <!-- Saldo disponível -->
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px;cursor:pointer" onclick="nav('acc')">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <div class="hicon" style="width:36px;height:36px;border-radius:12px;background:rgba(47,210,125,.15);color:var(--green);font-size:16px">💳</div>
+  <div style="background:linear-gradient(160deg,#132c30,#101d2c);border:1px solid rgba(100,220,190,.1);border-radius:22px;padding:20px;margin-bottom:14px;cursor:pointer;transition:transform .15s" onclick="nav('acc')">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:13px;min-width:0">
+        <div class="hicon" style="width:46px;height:46px;border-radius:15px;background:rgba(52,211,153,.14);color:var(--green);font-size:19px">💳</div>
         <div>
-          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:2px">Saldo disponível</div>
-          <div style="font-size:24px;font-weight:800;color:var(--text)" id="h-total">R$ 0</div>
+          <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px">Saldo disponível</div>
+          <div style="font-size:27px;font-weight:800;letter-spacing:-.3px" id="h-total">R$ 0</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <div id="h-meta-pct-badge" style="font-size:11px;color:var(--muted)">0% da meta</div>
-      </div>
+      <div id="h-meta-pct-badge" style="font-size:11.5px;color:var(--muted);flex-shrink:0">0% da meta</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
-      <div style="flex:1;background:rgba(255,255,255,.07);border-radius:8px;height:5px;overflow:hidden">
-        <div id="h-saldo-bar" style="height:100%;width:0%;border-radius:8px;background:var(--green);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+      <div style="flex:1;background:rgba(255,255,255,.06);border-radius:20px;height:6px;overflow:hidden">
+        <div id="h-saldo-bar" style="height:100%;width:0%;border-radius:20px;background:linear-gradient(90deg,#1fae7a,var(--green));transition:width .7s cubic-bezier(.4,0,.2,1)"></div>
       </div>
-      <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
+      <span style="color:var(--muted);opacity:.3;font-size:15px">›</span>
     </div>
   </div>
 
   <!-- Grid 2x2 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-    <div class="hcard" style="background:var(--card2);border:1px solid var(--line)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <div class="hicon" style="background:rgba(255,93,108,.18);color:var(--red);font-size:15px;font-weight:800">↓</div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Despesas<br>do mês</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div class="hcard" style="background:linear-gradient(160deg,rgba(255,107,122,.05),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div class="hicon" style="width:38px;height:38px;background:rgba(255,107,122,.14);color:var(--red);font-weight:800">↓</div>
+        <div style="font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.07em">Despesas<br>do mês</div>
       </div>
-      <div style="font-size:20px;font-weight:800;color:var(--red)" id="h-apagar">R$ 0</div>
+      <div style="font-size:23px;font-weight:800;color:var(--red);letter-spacing:-.3px" id="h-apagar">R$ 0</div>
       <div id="h-exp-trend" class="trend"></div>
-      <div id="h-exp-spark" style="position:absolute;right:10px;bottom:10px;opacity:.85"></div>
+      <div id="h-exp-spark" style="position:absolute;right:14px;bottom:14px;opacity:.9;filter:drop-shadow(0 0 4px rgba(255,107,122,.35))"></div>
     </div>
-    <div class="hcard" style="background:var(--card2);border:1px solid var(--line);cursor:pointer" onclick="showReceitasScreen()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="hicon" style="background:rgba(47,210,125,.18);color:var(--green);font-size:15px;font-weight:800">↑</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Receitas<br>recebidas</div>
+    <div class="hcard" style="background:linear-gradient(160deg,rgba(52,211,153,.06),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);cursor:pointer" onclick="showReceitasScreen()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="hicon" style="width:38px;height:38px;background:rgba(52,211,153,.14);color:var(--green);font-weight:800">↑</div>
+          <div style="font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.07em">Receitas<br>recebidas</div>
         </div>
-        <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
+        <span style="color:var(--muted);opacity:.3;font-size:15px">›</span>
       </div>
-      <div style="font-size:20px;font-weight:800;color:var(--green)" id="h-receita">R$ 0</div>
-      <div id="h-receita-prev" style="font-size:11px;margin-top:3px"></div>
-      <div id="h-inc-spark" style="position:absolute;right:10px;bottom:10px;opacity:.85"></div>
+      <div style="font-size:23px;font-weight:800;color:var(--green);letter-spacing:-.3px" id="h-receita">R$ 0</div>
+      <div id="h-receita-prev" style="font-size:11.5px;margin-top:5px;color:var(--muted)"></div>
+      <div id="h-inc-spark" style="position:absolute;right:14px;bottom:14px;opacity:.9;filter:drop-shadow(0 0 4px rgba(52,211,153,.35))"></div>
     </div>
-    <div class="hcard" style="background:var(--card2);border:1px solid var(--line);cursor:pointer" onclick="showFaltaPagarScreen()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="hicon" style="background:rgba(79,140,255,.18);color:var(--accent);font-size:15px">📄</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Falta<br>pagar</div>
+    <div class="hcard" style="background:linear-gradient(160deg,rgba(79,140,255,.06),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);cursor:pointer" onclick="showFaltaPagarScreen()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="hicon" style="width:38px;height:38px;background:rgba(79,140,255,.14);color:var(--accent)">📄</div>
+          <div style="font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.07em">Falta<br>pagar</div>
         </div>
-        <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
+        <span style="color:var(--muted);opacity:.3;font-size:15px">›</span>
       </div>
-      <div style="font-size:20px;font-weight:800" id="h-falta">R$ 0</div>
-      <div id="h-falta-count" style="font-size:11px;color:var(--accent);font-weight:700;margin-top:3px"></div>
+      <div style="font-size:23px;font-weight:800;letter-spacing:-.3px" id="h-falta">R$ 0</div>
+      <div id="h-falta-count" style="font-size:11.5px;color:var(--accent);font-weight:700;margin-top:5px"></div>
     </div>
-    <div class="hcard" style="background:var(--card2);border:1px solid rgba(79,140,255,.3);cursor:pointer" onclick="showResultadoScreen()">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="hicon" style="background:rgba(212,168,60,.22);color:#e0b84d;font-size:15px">💡</div>
-          <div style="font-size:10px;color:var(--muted);font-weight:700;line-height:1.3;text-transform:uppercase;letter-spacing:.06em">Resultado<br>do mês</div>
+    <div class="hcard" style="background:linear-gradient(160deg,rgba(79,140,255,.09),rgba(255,255,255,.015));border:1px solid rgba(120,170,255,.22);cursor:pointer;box-shadow:0 0 36px rgba(79,140,255,.08)" onclick="showResultadoScreen()">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="hicon" style="width:38px;height:38px;background:rgba(226,176,77,.2);color:var(--gold)">💡</div>
+          <div style="font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.35;text-transform:uppercase;letter-spacing:.07em">Resultado<br>do mês</div>
         </div>
-        <span style="color:var(--muted);opacity:.5;font-size:16px">›</span>
+        <span style="color:var(--muted);opacity:.3;font-size:15px">›</span>
       </div>
-      <div style="font-size:20px;font-weight:800" id="h-sobra">R$ 0</div>
-      <div id="h-sobra-pill-home" style="display:flex;align-items:center;gap:6px;margin-top:5px"></div>
+      <div style="font-size:23px;font-weight:800;letter-spacing:-.3px" id="h-sobra">R$ 0</div>
+      <div id="h-sobra-pill-home" style="display:flex;align-items:center;gap:6px;margin-top:6px"></div>
     </div>
   </div>
 
   <!-- Meta mensal -->
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <div class="hicon" style="background:rgba(167,114,255,.15);font-size:15px">🎯</div>
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Meta mensal de saldo</div>
+  <div style="background:linear-gradient(160deg,rgba(167,139,250,.07),var(--card) 55%);border:1px solid rgba(167,139,250,.14);border-radius:22px;padding:20px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <div class="hicon" style="width:38px;height:38px;background:rgba(167,139,250,.16);color:var(--purple)">🎯</div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em">Meta mensal de saldo</div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-      <b id="h-meta-now" style="font-size:18px">R$ 0</b>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+      <b id="h-meta-now" style="font-size:19px;letter-spacing:-.2px">R$ 0</b>
       <span style="font-size:13px;color:var(--muted);font-weight:600" id="h-meta-txt">0%</span>
     </div>
-    <div style="background:rgba(255,255,255,.07);border-radius:8px;height:8px;overflow:hidden;margin-bottom:10px">
-      <div class="barfill" id="h-meta-bar" style="width:0%;height:100%;border-radius:8px;background:var(--purple);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+    <div style="background:rgba(255,255,255,.06);border-radius:20px;height:7px;overflow:hidden;margin-bottom:12px">
+      <div class="barfill" id="h-meta-bar" style="width:0%;height:100%;border-radius:20px;background:linear-gradient(90deg,#8b6fe0,var(--purple));transition:width .7s cubic-bezier(.4,0,.2,1)"></div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px">
       <span id="h-meta-falta" style="color:var(--purple);font-weight:600"></span>
@@ -311,14 +315,14 @@ canvas{max-width:100%}
   </div>
 
   <!-- Próximos vencimentos -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="width:28px;height:28px;border-radius:8px;background:rgba(79,140,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px">📅</div>
-      <span style="font-size:14px;font-weight:700">Próximos vencimentos</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:0 2px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:30px;height:30px;border-radius:10px;background:rgba(79,140,255,.14);display:flex;align-items:center;justify-content:center;font-size:13px">📅</div>
+      <span style="font-size:15px;font-weight:700;letter-spacing:-.1px">Próximos vencimentos</span>
     </div>
-    <button style="font-size:11px;padding:5px 12px;border-radius:20px;background:rgba(79,140,255,.15);color:var(--accent);border:1px solid rgba(79,140,255,.25);cursor:pointer;font-weight:600" onclick="showFaltaPagarScreen()">Ver todos</button>
+    <button style="font-size:11.5px;padding:6px 13px;border-radius:20px;background:rgba(79,140,255,.13);color:var(--accent);border:1px solid rgba(79,140,255,.18);cursor:pointer;font-weight:600" onclick="showFaltaPagarScreen()">Ver todos</button>
   </div>
-  <div class="card" id="h-prox" style="border-radius:16px;overflow:hidden;padding:0 14px"></div>
+  <div class="card" id="h-prox" style="border-radius:20px;overflow:hidden;padding:2px 18px"></div>
 </div>
 
 <!-- CONTAS -->
@@ -949,22 +953,24 @@ function sparkSvg(vals,color){
   if(!vals||vals.length<2||vals.every(v=>v===0))return "";
   const w=60,h=24,max=Math.max(...vals),min=Math.min(...vals,0),range=(max-min)||1;
   const pts=vals.map((v,i)=>{const x=(i/(vals.length-1))*w;const y=h-((v-min)/range)*h;return x.toFixed(1)+","+y.toFixed(1);}).join(" ");
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/></svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>`;
 }
 function toggleValuesHidden(){const el=document.getElementById("h-patrimonio");if(el)el.classList.toggle("blurval");}
 function patSpark(){
   const entries=Object.entries(D.patHistory||{}).sort((a,b)=>a[0].localeCompare(b[0])).slice(-7);
   const vals=entries.map(e=>e[1]);
-  const w=150,h=64;
+  const w=150,h=70;
+  const defs=`<defs><linearGradient id="patGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#bcd4ff" stop-opacity=".28"/><stop offset="100%" stop-color="#bcd4ff" stop-opacity="0"/></linearGradient><filter id="patGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
   if(vals.length<2){
-    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="0,${h-8} ${(w*.2).toFixed(1)},${h-18} ${(w*.4).toFixed(1)},${h-14} ${(w*.6).toFixed(1)},${h-32} ${(w*.8).toFixed(1)},${h-40} ${w},${h-8}" stroke="rgba(79,140,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${w}" cy="${h-8}" r="3.5" fill="#4f8cff"/></svg>`;
+    const pts2="0,"+(h-10)+" "+(w*.2).toFixed(1)+","+(h-20)+" "+(w*.4).toFixed(1)+","+(h-16)+" "+(w*.6).toFixed(1)+","+(h-34)+" "+(w*.8).toFixed(1)+","+(h-42)+" "+w+","+(h-10);
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none">${defs}<polyline points="${pts2}" stroke="rgba(180,205,255,.55)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#patGlow)"/><circle cx="${w}" cy="${h-10}" r="3" fill="#fff" opacity=".9"/></svg>`;
   }
   const max=Math.max(...vals),min=Math.min(...vals),range=(max-min)||1;
-  const pts=vals.map((v,i)=>[i/(vals.length-1)*w,h-8-((v-min)/range)*(h-20)]);
+  const pts=vals.map((v,i)=>[i/(vals.length-1)*w,h-10-((v-min)/range)*(h-24)]);
   const line=pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
   const area="M0,"+h+" L"+pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" L")+" L"+w+","+h+" Z";
   const last=pts[pts.length-1];
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><defs><linearGradient id="patGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4f8cff" stop-opacity=".35"/><stop offset="100%" stop-color="#4f8cff" stop-opacity="0"/></linearGradient></defs><path d="${area}" fill="url(#patGrad)"/><polyline points="${line}" stroke="#4f8cff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="#fff" stroke="#4f8cff" stroke-width="2"/></svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none">${defs}<path d="${area}" fill="url(#patGrad)"/><polyline points="${line}" stroke="rgba(190,215,255,.65)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#patGlow)"/><circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="#fff" opacity=".95"/></svg>`;
 }
 
 /* ---------- RENDER ---------- */
@@ -1033,26 +1039,26 @@ function render(){
     const dueParts=(b.due||"").split('-');
     const dueDay=dueParts[2]||'';
     const dueMon=dueParts[1]?_DMON[parseInt(dueParts[1])-1]:'';
-    const pillBg=overdue?'rgba(255,93,108,.18)':dd<=7?'rgba(245,158,11,.18)':'rgba(79,140,255,.15)';
-    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.9)';
+    const pillBg=overdue?'rgba(255,107,122,.14)':dd<=7?'rgba(245,158,11,.14)':'rgba(79,140,255,.12)';
+    const pillColor=overdue?'var(--red)':dd<=7?'#f5a623':'rgba(120,170,255,.95)';
     const pillTxt=brDate(b.due);
     const isLast=_idx===prox.length-1;
     const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:`openTx(${b.id})`;
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;cursor:pointer;${isLast?'':'border-bottom:1px solid var(--line)'}" onclick="${clickFn}">
-      <div style="min-width:32px;text-align:center;flex-shrink:0">
-        <div style="font-size:17px;font-weight:800;color:${overdue?'var(--red)':'var(--text)'};line-height:1">${dueDay}</div>
-        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">${dueMon}</div>
+    return `<div style="display:flex;align-items:center;gap:14px;padding:16px 0;cursor:pointer;${isLast?'':'border-bottom:1px solid var(--line-soft)'}" onclick="${clickFn}">
+      <div style="min-width:34px;text-align:center;flex-shrink:0">
+        <div style="font-size:18px;font-weight:800;color:${overdue?'var(--red)':'var(--txt)'};line-height:1">${dueDay}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">${dueMon}</div>
       </div>
-      <div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div>
+      <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;opacity:.85"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}${cardTag}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:1px">${b.cat||""}</div>
+        <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}${cardTag}</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px">${b.cat||""}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:13px;font-weight:700">${fmt(b.value)}</div>
+        <div style="font-size:13.5px;font-weight:700">${fmt(b.value)}</div>
       </div>
-      <span style="background:${pillBg};color:${pillColor};font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;flex-shrink:0">${pillTxt}</span>
-      <span style="color:var(--muted);opacity:.4;font-size:14px;flex-shrink:0">›</span>
+      <span style="background:${pillBg};color:${pillColor};font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;flex-shrink:0;margin-left:8px">${pillTxt}</span>
+      <span style="color:var(--muted);opacity:.28;font-size:14px;flex-shrink:0;margin-left:6px">›</span>
     </div>`;
   }).join(""):'<div class="empty" style="padding:16px 0">Nada a pagar 🎉</div>';
   savePatSnap();
@@ -1428,7 +1434,7 @@ function showReceitasScreen(tab){
   }
   const seg=(k,l)=>`<div class="${tab===k?"on":""}" onclick="showReceitasScreen('${k}')">${l}</div>`;
   modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(47,210,125,.15);color:var(--green);font-size:18px;font-weight:800">↑</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Receitas recebidas</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
-  <div class="hbox" style="background:linear-gradient(150deg,rgba(47,210,125,.14),rgba(47,210,125,.03));border:1px solid rgba(47,210,125,.25)">
+  <div class="hbox" style="background:linear-gradient(150deg,rgba(52,211,153,.10),rgba(52,211,153,.02));border:1px solid rgba(52,211,153,.16)">
     <div class="stat2" style="margin-bottom:12px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Recebidas</div><div class="v" style="color:var(--green)">${fmt0(totRec)}</div><div class="s">${recebidas.length} lançamento${recebidas.length!==1?"s":""}</div></div>
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Previsto</div><div class="v" style="color:#f59e0b">+ ${fmt0(totPrev)}</div><div class="s">${previstas.length} lançamento${previstas.length!==1?"s":""}</div></div>
@@ -1457,15 +1463,15 @@ function showFaltaPagarScreen(){
     const overdue=b.due<today,dd=daysTo(b.due);
     const isFat=!!(b.isFatura&&b.cardId);const fatCard=isFat?D.cards.find(x=>x.id===b.cardId):null;
     const dotColor=isFat&&fatCard?fatCard.color:catColor(b.cat);
-    const pillBg=overdue?'rgba(255,93,108,.18)':dd<=7?'rgba(245,158,11,.18)':'rgba(79,140,255,.15)';
-    const pillColor=overdue?'var(--red)':dd<=7?'#f59e0b':'rgba(79,140,255,.9)';
+    const pillBg=overdue?'rgba(255,107,122,.14)':dd<=7?'rgba(245,158,11,.14)':'rgba(79,140,255,.12)';
+    const pillColor=overdue?'var(--red)':dd<=7?'#f5a623':'rgba(120,170,255,.95)';
     const pillTxt=brDate(b.due);
     const dueParts=(b.due||"").split('-');const dueDay=dueParts[2]||'';const _DMON=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];const dueMon=dueParts[1]?_DMON[parseInt(dueParts[1])-1]:'';
     const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:`openTx(${b.id})`;
-    return `<div class="lrow" style="cursor:pointer" onclick="closeModal();${clickFn}"><div class="dbadge"><b style="color:${overdue?"var(--red)":"var(--text)"}">${dueDay}</b><span>${dueMon}</span></div><div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11px;color:var(--muted)">${b.cat||""}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13.5px;font-weight:700">${fmt(b.value)}</div></div><span style="background:${pillBg};color:${pillColor};font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;flex-shrink:0">${pillTxt}</span><span style="color:var(--muted);opacity:.4;font-size:14px;flex-shrink:0">›</span></div>`;
+    return `<div class="lrow" style="cursor:pointer" onclick="closeModal();${clickFn}"><div class="dbadge"><b style="color:${overdue?"var(--red)":"var(--txt)"}">${dueDay}</b><span>${dueMon}</span></div><div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;opacity:.85"></div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11.5px;color:var(--muted);margin-top:1px">${b.cat||""}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13.5px;font-weight:700">${fmt(b.value)}</div></div><span style="background:${pillBg};color:${pillColor};font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;flex-shrink:0;margin-left:8px">${pillTxt}</span><span style="color:var(--muted);opacity:.28;font-size:14px;flex-shrink:0;margin-left:4px">›</span></div>`;
   }).join(""):'<div class="empty">Nada a pagar 🎉</div>';
   modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(79,140,255,.15);color:var(--accent);font-size:18px">📄</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Falta pagar</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
-  <div class="hbox" style="background:linear-gradient(150deg,rgba(79,140,255,.14),rgba(79,140,255,.03));border:1px solid rgba(79,140,255,.25)">
+  <div class="hbox" style="background:linear-gradient(150deg,rgba(79,140,255,.10),rgba(79,140,255,.02));border:1px solid rgba(79,140,255,.16)">
     <div class="stat2" style="margin-bottom:14px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Total a pagar</div><div class="v">${fmt0(total)}</div><div class="s">${pendentes.length} conta${pendentes.length!==1?"s":""}</div></div>
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Vencendo em breve</div><div class="v" style="color:#f59e0b">${fmt0(vencBreveTotal)}</div><div class="s">${vencBreve} conta${vencBreve!==1?"s":""} até ${_d7.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}</div></div>
@@ -1491,15 +1497,15 @@ function showResultadoScreen(){
   const prevSobra=sumInc(prevM)-sumExp(prevM);
   const variacao=sobra-prevSobra;
   const variacaoPct=prevSobra!==0?Math.round((variacao/Math.abs(prevSobra))*100):(sobra!==0?100:0);
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(212,168,60,.22);color:#e0b84d;font-size:18px">💡</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
-  <div class="hbox" style="background:linear-gradient(150deg,rgba(245,158,11,.16),rgba(245,158,11,.03));border:1px solid rgba(245,158,11,.28)">
+  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(226,176,77,.18);color:var(--gold);font-size:18px">💡</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
+  <div class="hbox" style="background:linear-gradient(150deg,rgba(226,176,77,.13),rgba(226,176,77,.02));border:1px solid rgba(226,176,77,.2)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
         <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">Resultado do mês</div>
         <div style="font-size:30px;font-weight:800;color:${sobra>=0?"var(--green)":"var(--red)"};margin-bottom:8px">${sobra>=0?"+":""}${fmt0(sobra)}</div>
         <div style="display:flex;align-items:center;gap:8px">${sobraLabel}<span style="font-size:12px;color:var(--muted)">${Math.abs(pct)}% da receita</span></div>
       </div>
-      ${barSvg(sobraSeries,"#f5b83d","var(--red)")}
+      ${barSvg(sobraSeries,"var(--gold)","var(--red)")}
     </div>
   </div>
   <div class="sectlbl">Resumo do mês</div>
@@ -1521,7 +1527,7 @@ function showResultadoScreen(){
     if(!cv||typeof Chart==="undefined")return;
     if(charts["ch-resultado-modal"])charts["ch-resultado-modal"].destroy();
     const labels=[];for(let i=5;i>=0;i--)labels.push(mLabel(addM(realM,-i)).split(" ")[0].slice(0,3));
-    charts["ch-resultado-modal"]=new Chart(cv,{type:"line",data:{labels,datasets:[{data:sobraSeries,borderColor:"#f5b83d",backgroundColor:"rgba(245,184,61,.12)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:sobraSeries.map(v=>v>=0?"#2fd27d":"#ff5d6c"),segment:{borderColor:ctx=>ctx.p0.parsed.y>=0&&ctx.p1.parsed.y>=0?"#2fd27d":(ctx.p0.parsed.y<0&&ctx.p1.parsed.y<0?"#ff5d6c":"#f5b83d")}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#8ea0bd",font:{size:10}}},y:{grid:{color:"rgba(255,255,255,.05)"},ticks:{color:"#8ea0bd",font:{size:10}}}}}});
+    charts["ch-resultado-modal"]=new Chart(cv,{type:"line",data:{labels,datasets:[{data:sobraSeries,borderColor:"#e2b04d",backgroundColor:"rgba(226,176,77,.12)",fill:true,tension:.35,pointRadius:3,pointBackgroundColor:sobraSeries.map(v=>v>=0?"#2fd27d":"#ff5d6c"),segment:{borderColor:ctx=>ctx.p0.parsed.y>=0&&ctx.p1.parsed.y>=0?"#2fd27d":(ctx.p0.parsed.y<0&&ctx.p1.parsed.y<0?"#ff5d6c":"#f5b83d")}}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#8ea0bd",font:{size:10}}},y:{grid:{color:"rgba(255,255,255,.05)"},ticks:{color:"#8ea0bd",font:{size:10}}}}}});
   },30);
 }
 // Salva snapshot do patrimônio do mês atual (chamado a cada render)
