@@ -16,7 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#080e1a;--card:#111b2d;--card2:#17233a;--line:rgba(255,255,255,.07);--line-soft:rgba(255,255,255,.05);--txt:#eef2f8;--muted:#8497b5;--accent:#4f8cff;--green:#34d399;--red:#ff6b7a;--amber:#ffb547;--purple:#a78bfa;--gold:#e2b04d;--shadow:0 12px 32px rgba(0,0,0,.4)}
+:root{--bg:#080e1a;--card:#111b2d;--card2:#17233a;--glass:rgba(255,255,255,.035);--glass2:rgba(255,255,255,.055);--line:rgba(255,255,255,.07);--line-soft:rgba(255,255,255,.05);--txt:#eef2f8;--muted:#8497b5;--accent:#4f8cff;--green:#34d399;--red:#ff6b7a;--amber:#ffb547;--purple:#a78bfa;--gold:#e2b04d;--shadow:0 16px 40px rgba(0,0,0,.38),0 2px 8px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.045);--shadow-sm:0 8px 20px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);padding-bottom:96px;font-size:15px;-webkit-font-smoothing:antialiased}
@@ -30,7 +30,7 @@ header p{margin:2px 0 0;color:var(--muted);font-size:13px}
 #cloud.err{color:var(--red);border-color:rgba(255,93,108,.4)}
 @keyframes _syncPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
 .wrap{padding:0 16px;max-width:560px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:var(--shadow)}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0) 30%),var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:var(--shadow)}
 .hero{background:linear-gradient(135deg,#1c3a6e,#16243d)}
 .hero .big{font-size:30px;font-weight:800;letter-spacing:.3px}
 .hero .lbl{color:#bcd0f0;font-size:13px;margin-bottom:2px}
@@ -64,45 +64,46 @@ nav button.active{color:var(--accent)} nav button .ic{font-size:18px}
 .page{display:none} .page.active{display:block}
 .monthbar{display:flex;gap:8px;overflow-x:auto;padding:4px;margin:4px 0 2px;scrollbar-width:none}
 .monthbar::-webkit-scrollbar{display:none}
-.mtab{flex:0 0 auto;padding:7px 13px;border-radius:20px;background:var(--card2);border:1px solid var(--line);color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap}
-.mtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mtab{flex:0 0 auto;padding:8px 15px;border-radius:20px;background:var(--glass);border:1px solid var(--line);color:var(--muted);font-size:13px;cursor:pointer;white-space:nowrap;backdrop-filter:blur(6px)}
+.mtab.active{background:linear-gradient(180deg,#5a97ff,var(--accent));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(79,140,255,.35)}
 .modal{position:fixed;inset:0;background:rgba(3,6,14,.72);display:none;align-items:flex-end;z-index:50}
 .modal.open{display:flex;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
-.sheet{background:linear-gradient(180deg,#152238,var(--card) 40%);width:100%;max-width:560px;margin:0 auto;border-radius:28px 28px 0 0;padding:10px 20px 32px;border:1px solid rgba(255,255,255,.08);border-bottom:none;box-shadow:0 -20px 60px rgba(0,0,0,.5);max-height:97vh;overflow-y:auto;animation:sheetUp .36s cubic-bezier(.16,1,.3,1)}
-.sheet.full{height:97vh}
+.sheet{background:linear-gradient(180deg,#182a48,var(--card) 46%);width:100%;max-width:560px;margin:0 auto;border-radius:34px 34px 0 0;padding:10px 22px 34px;border:1px solid rgba(255,255,255,.09);border-bottom:none;box-shadow:0 -24px 70px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05);max-height:97vh;overflow-y:auto;animation:sheetUp .36s cubic-bezier(.16,1,.3,1)}
+.sheet.full{height:98vh}
 @keyframes sheetUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
-.sheet-grab{width:38px;height:4.5px;background:rgba(255,255,255,.16);border-radius:4px;margin:4px auto 18px}
+.sheet-grab{width:38px;height:4.5px;background:rgba(255,255,255,.14);border-radius:4px;margin:6px auto 20px}
 .sheet h3{margin:0 0 14px}
-.hcard{border-radius:20px;padding:18px;position:relative;overflow:hidden;transition:transform .15s ease,background .15s ease}
+.hcard{border-radius:22px;padding:18px;position:relative;overflow:hidden;transition:transform .15s ease,background .15s ease;box-shadow:var(--shadow-sm)}
 .hcard:active{transform:scale(.97)}
 .blurval{filter:blur(8px);user-select:none}
-.hicon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.hicon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;position:relative}
 .trend{font-size:11.5px;font-weight:600;margin-top:5px;letter-spacing:.01em}
 .trend.pos{color:var(--green)} .trend.neg{color:var(--red)}
-.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 .dbadge{min-width:36px;text-align:center;flex-shrink:0}
-.dbadge b{display:block;font-size:16px;font-weight:800;line-height:1.1}
+.dbadge b{display:block;font-size:16px;font-weight:800;line-height:1.1;letter-spacing:-.2px}
 .dbadge span{display:block;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
-.mheader{display:flex;align-items:center;gap:14px;margin-bottom:22px;position:sticky;top:0;background:var(--card);padding:4px 0 12px;z-index:2}
-.hbox{border-radius:22px;padding:22px;margin-bottom:22px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
-.stat2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
-.stat2 .c{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.05);border-radius:14px;padding:14px}
-.stat2 .c .l{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
-.stat2 .c .v{font-size:21px;font-weight:800;letter-spacing:-.2px}
-.stat2 .c .s{font-size:11.5px;color:var(--muted);margin-top:3px}
-.sectlbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:24px 2px 10px;display:flex;justify-content:space-between;align-items:center}
-.listcard{background:var(--card2);border:1px solid var(--line);border-radius:16px;padding:0 16px;margin-bottom:8px}
-.lrow{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-soft);transition:opacity .1s}
+.mheader{display:flex;align-items:center;gap:14px;margin-bottom:24px;position:sticky;top:0;background:linear-gradient(180deg,var(--card) 70%,transparent);padding:6px 0 14px;z-index:2}
+.hbox{border-radius:24px;padding:24px;margin-bottom:24px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.07);box-shadow:0 14px 34px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)}
+.stat2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.stat2 .c{background:var(--glass);border:1px solid rgba(255,255,255,.055);border-radius:16px;padding:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.stat2 .c .l{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
+.stat2 .c .v{font-size:22px;font-weight:800;letter-spacing:-.3px}
+.stat2 .c .s{font-size:11.5px;color:var(--muted);margin-top:4px}
+.sectlbl{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em;margin:26px 2px 12px;display:flex;justify-content:space-between;align-items:center}
+.listcard{background:var(--glass);border:1px solid var(--line-soft);border-radius:18px;padding:0 16px;margin-bottom:8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.lrow{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line-soft);transition:opacity .1s}
 .lrow:last-child{border-bottom:none}
-.lrow:active{opacity:.6}
-.fld{margin-bottom:12px} .fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
-.fld input,.fld select{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px;color:var(--txt);font-size:15px}
+.lrow:active{opacity:.55}
+.fld{margin-bottom:14px} .fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.fld input,.fld select{width:100%;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:13px 14px;color:var(--txt);font-size:15px;transition:border-color .15s}
+.fld input:focus,.fld select:focus{outline:none;border-color:rgba(120,170,255,.4)}
 .flex{display:flex;gap:10px} .flex>*{flex:1}
 .seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
 .seg div{flex:1;text-align:center;padding:10px;font-size:14px;cursor:pointer;color:var(--muted)}
-.segpill{display:flex;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:13px;padding:4px;margin-bottom:16px;gap:2px}
-.segpill div{flex:1;text-align:center;padding:9px 4px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-radius:10px;transition:background .15s,color .15s}
-.segpill div.on{background:#fff;color:#0b1220}
+.segpill{display:flex;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:14px;padding:4px;margin-bottom:18px;gap:2px}
+.segpill div{flex:1;text-align:center;padding:9px 4px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-radius:11px;transition:background .18s,color .18s,box-shadow .18s}
+.segpill div.on{background:#f4f6fa;color:#0b1220;box-shadow:0 3px 10px rgba(0,0,0,.25)}
 .seg div.on{background:var(--accent);color:#fff;font-weight:600}
 .del{color:var(--red);background:none;border:none;font-size:13px;cursor:pointer}
 .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
@@ -230,7 +231,7 @@ canvas{max-width:100%}
   </div>
 
   <!-- Saldo disponível -->
-  <div style="background:linear-gradient(160deg,#132c30,#101d2c);border:1px solid rgba(100,220,190,.1);border-radius:22px;padding:20px;margin-bottom:14px;cursor:pointer;transition:transform .15s" onclick="nav('acc')">
+  <div style="background:linear-gradient(160deg,#12292d,#0e1b28);border:1px solid rgba(100,220,190,.09);border-radius:22px;padding:20px;margin-bottom:14px;cursor:pointer;transition:transform .15s;box-shadow:0 14px 32px rgba(0,20,20,.25),inset 0 1px 0 rgba(255,255,255,.05)" onclick="nav('acc')">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:13px;min-width:0">
         <div class="hicon" style="width:46px;height:46px;border-radius:15px;background:rgba(52,211,153,.14);color:var(--green);font-size:19px">💳</div>
@@ -297,7 +298,7 @@ canvas{max-width:100%}
   </div>
 
   <!-- Meta mensal -->
-  <div style="background:linear-gradient(160deg,rgba(167,139,250,.07),var(--card) 55%);border:1px solid rgba(167,139,250,.14);border-radius:22px;padding:20px;margin-bottom:16px">
+  <div style="background:linear-gradient(160deg,rgba(167,139,250,.07),var(--card) 55%);border:1px solid rgba(167,139,250,.14);border-radius:22px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow-sm)">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
       <div class="hicon" style="width:38px;height:38px;background:rgba(167,139,250,.16);color:var(--purple)">🎯</div>
       <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.09em">Meta mensal de saldo</div>
@@ -954,7 +955,7 @@ function sparkSvg(vals,color){
   if(!vals||vals.length<2||vals.every(v=>v===0))return "";
   const w=60,h=24,max=Math.max(...vals),min=Math.min(...vals,0),range=(max-min)||1;
   const pts=vals.map((v,i)=>{const x=(i/(vals.length-1))*w;const y=h-((v-min)/range)*h;return x.toFixed(1)+","+y.toFixed(1);}).join(" ");
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" fill="none"><polyline points="${pts}" stroke="${color}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/></svg>`;
 }
 function toggleValuesHidden(){const el=document.getElementById("h-patrimonio");if(el)el.classList.toggle("blurval");}
 function patSpark(){
@@ -1403,7 +1404,7 @@ function barSvg(vals,posColor,negColor){
     const bh=Math.max(2,Math.abs(v)/max*(h-4));
     const x=i*(w/vals.length);
     const y=h-bh;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${v>=0?posColor:negColor}"/>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2.5" fill="${v>=0?posColor:negColor}" opacity=".82"/>`;
   }).join("");
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${bars}</svg>`;
 }
@@ -1434,7 +1435,7 @@ function showReceitasScreen(tab){
          (!recebidas.length&&!previstas.length?'<div class="empty">Nenhum lançamento neste mês</div>':"");
   }
   const seg=(k,l)=>`<div class="${tab===k?"on":""}" onclick="showReceitasScreen('${k}')">${l}</div>`;
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(47,210,125,.15);color:var(--green);font-size:18px;font-weight:800">↑</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Receitas recebidas</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:44px;height:44px;background:rgba(52,211,153,.14);color:var(--green);font-size:18px;font-weight:800;box-shadow:0 0 22px rgba(52,211,153,.22),inset 0 1px 0 rgba(255,255,255,.08)">↑</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Receitas recebidas</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:38px;height:38px;border-radius:13px;background:var(--glass);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(52,211,153,.10),rgba(52,211,153,.02));border:1px solid rgba(52,211,153,.16)">
     <div class="stat2" style="margin-bottom:12px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Recebidas</div><div class="v" style="color:var(--green)">${fmt0(totRec)}</div><div class="s">${recebidas.length} lançamento${recebidas.length!==1?"s":""}</div></div>
@@ -1471,7 +1472,7 @@ function showFaltaPagarScreen(){
     const clickFn=isFat?`openCardFatura(${b.cardId},'${b.month}')`:`openTx(${b.id})`;
     return `<div class="lrow" style="cursor:pointer;gap:9px" onclick="closeModal();${clickFn}"><div class="dbadge" style="min-width:30px"><b style="color:${overdue?"var(--red)":"var(--txt)"}">${dueDay}</b><span>${dueMon}</span></div><div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;opacity:.85"></div><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.desc}</div><div style="font-size:11.5px;color:var(--muted);margin-top:1px">${b.cat||""}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13.5px;font-weight:700;white-space:nowrap">${fmt(b.value)}</div><span style="display:inline-block;background:${pillBg};color:${pillColor};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:4px">${pillTxt}</span></div><span style="color:var(--muted);opacity:.28;font-size:14px;flex-shrink:0">›</span></div>`;
   }).join(""):'<div class="empty">Nada a pagar 🎉</div>';
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(79,140,255,.15);color:var(--accent);font-size:18px">📄</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Falta pagar</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:44px;height:44px;background:rgba(79,140,255,.14);color:var(--accent);font-size:18px;box-shadow:0 0 22px rgba(79,140,255,.22),inset 0 1px 0 rgba(255,255,255,.08)">📄</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Falta pagar</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:38px;height:38px;border-radius:13px;background:var(--glass);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(79,140,255,.10),rgba(79,140,255,.02));border:1px solid rgba(79,140,255,.16)">
     <div class="stat2" style="margin-bottom:14px">
       <div class="c" style="background:rgba(0,0,0,.15)"><div class="l">Total a pagar</div><div class="v">${fmt0(total)}</div><div class="s">${pendentes.length} conta${pendentes.length!==1?"s":""}</div></div>
@@ -1498,7 +1499,7 @@ function showResultadoScreen(){
   const prevSobra=sumInc(prevM)-sumExp(prevM);
   const variacao=sobra-prevSobra;
   const variacaoPct=prevSobra!==0?Math.round((variacao/Math.abs(prevSobra))*100):(sobra!==0?100:0);
-  modal(`<div class="mheader"><div class="hicon" style="width:40px;height:40px;background:rgba(226,176,77,.18);color:var(--gold);font-size:18px">💡</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:36px;height:36px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
+  modal(`<div class="mheader"><div class="hicon" style="width:44px;height:44px;background:rgba(226,176,77,.16);color:var(--gold);font-size:18px;box-shadow:0 0 22px rgba(226,176,77,.22),inset 0 1px 0 rgba(255,255,255,.08)">💡</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:800">Resultado do mês</div><div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px">${mLabel(realM)} <span style="opacity:.6">⌄</span></div></div><div style="width:38px;height:38px;border-radius:13px;background:var(--glass);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);flex-shrink:0">📅</div></div>
   <div class="hbox" style="background:linear-gradient(150deg,rgba(226,176,77,.13),rgba(226,176,77,.02));border:1px solid rgba(226,176,77,.2)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
