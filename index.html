@@ -926,7 +926,35 @@ async function updatePrices(silent){
       }catch(e){}
     }
   }
-  // 3) StatusInvest via proxy — FIIs/REITs BRL — antecipa provento já ANUNCIADO mesmo antes de ser pago
+  // 3) stockanalysis.com via proxy — ETFs/REITs em USD — pega a data de PAGAMENTO real anunciada
+  // (o campo 'date' do Yahoo acima é a data-EX, não a data em que o dinheiro cai na conta; para
+  // REITs mensais tipo O/SLG/STAG isso fazia o mês corrente nunca ser reconhecido como "confirmado"
+  // mesmo já anunciado oficialmente, já que a data-ex quase sempre cai no mês anterior ao pagamento)
+  const usdDivTk=[...new Map(D.invest.filter(i=>i.moeda==="USD"&&(i.tipo==="ETF"||i.tipo==="REIT")).map(i=>[(i.ticker||i.ativo||"").split(" ")[0],i.tipo==="ETF"])).entries()];
+  for(const [t,isEtf] of usdDivTk){
+    if(!t)continue;
+    let got=false;
+    for(const px of proxies){
+      if(got)break;
+      try{
+        const url=px+encodeURIComponent("https://stockanalysis.com/api/symbol/"+(isEtf?"e":"s")+"/"+t+"/dividend");
+        const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+        const j=await r.json();
+        const hist=j.data?.history||[];
+        const first=hist[0];
+        if(first?.pay&&first?.amt){
+          const amtNum=parseFloat(String(first.amt).replace(/[^0-9.]/g,""));
+          if(amtNum>0&&(!payDateMap[t]||first.pay>payDateMap[t])){divMap[t]=amtNum;payDateMap[t]=first.pay;}
+          if(hist.length>=2){
+            const gaps=[];for(let i=0;i<Math.min(hist.length-1,5);i++){const g=(new Date(hist[i].pay)-new Date(hist[i+1].pay))/864e5;if(g>0)gaps.push(g);}
+            if(gaps.length){const avg=gaps.reduce((s,g)=>s+g,0)/gaps.length;payFreqMap[t]=avg<45?"mensal":avg<100?"trimestral":avg<200?"semestral":"anual";}
+          }
+          got=true;
+        }
+      }catch(e){}
+    }
+  }
+  // 4) StatusInvest via proxy — FIIs/REITs BRL — antecipa provento já ANUNCIADO mesmo antes de ser pago
   // (a brapi só retorna dividendsData.cashDividends de proventos já efetivamente pagos, então sem essa
   // fonte extra o app só saberia de um provento novo depois que ele já tivesse caído na conta)
   const fiiBrTk=[...new Set(D.invest.filter(i=>i.moeda!=="USD"&&(i.tipo==="FII"||i.tipo==="REIT")).map(i=>(i.ticker||i.ativo||"").split(" ")[0]).filter(Boolean))];
