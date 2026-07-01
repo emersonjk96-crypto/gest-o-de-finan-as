@@ -954,7 +954,7 @@ function openInvDetail(id){
   const mn=hasdiv?it.lastDiv*it.qtd:0;
   const mBRL=hasdiv?(isUSD?mn*D.usd:mn):0;
   const yrNat=mn*12;const yrBRL=mBRL*12;
-  const yoc=it.aplicado&&mBRL?(mBRL*12/it.aplicado*100).toFixed(1):null;
+  const yoc=it.aplicado?(isUSD?(mn*12/it.aplicado*100):(mBRL*12/it.aplicado*100)).toFixed(1):null;
   const freqDays={mensal:30,trimestral:91,semestral:182,anual:365}[it.payFreq||"mensal"]||30;
   const nextPay=(()=>{if(!it.lastPayDate)return null;const d=new Date(it.lastPayDate+"T12:00:00");const today=new Date();while(d<=today)d.setDate(d.getDate()+freqDays);return d.toLocaleDateString("pt-BR");})();
   const tk=(it.ticker||it.ativo||"").split(" ")[0];
