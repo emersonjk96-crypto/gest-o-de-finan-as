@@ -779,9 +779,7 @@ function fbInit(){
       syncId=user.uid;
       localStorage.setItem(SKSTORE,syncId);
       _hideLoginScreen();
-      // Migra dados locais se existirem e forem mais recentes
-      const localNewer=(D.updatedAt||0)>0;
-      fbListen(localNewer);
+      fbListen();
       renderAuth();
       D.cards.forEach(c=>recalcCard(c.id));
       render();
@@ -793,12 +791,15 @@ function fbInit(){
     }
   });
 }
-function fbListen(pushFirst){
+function fbListen(){
   if(fbUnsub){fbUnsub();fbUnsub=null;}
   if(!fbDb)return;
   cloudBadge("","Conectando...");
   const ref=fbDb.collection("syncs").doc(syncId);
-  if(pushFirst){fbPush();}
+  // não empurra dados locais antes de ouvir a nuvem: isso sobrescrevia edições feitas em
+  // outro aparelho com o cache antigo local sempre que o app era reaberto. O compare-and-merge
+  // abaixo (por updatedAt) já cobre tanto "nuvem tem dado mais novo" quanto "local tem dado mais
+  // novo" (ex.: edição feita offline), e o "else" cobre o caso de documento ainda não existir.
   fbUnsub=ref.onSnapshot(function(snap){
     if(snap.exists&&snap.data().data){
       const rem=snap.data().data;
